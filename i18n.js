@@ -361,7 +361,7 @@ export function t(key, vars = {}) {
 
 export function applyI18n(root = document) {
   document.documentElement.lang = lang;
-  document.title = `chochop · ${t('tag')}`;
+  document.title = `chop chop · ${t('tag')}`;
   document.querySelector('meta[name=description]')?.setAttribute('content', t('metaDesc'));
   root.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   root.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });

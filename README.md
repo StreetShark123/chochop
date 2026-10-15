@@ -1,4 +1,4 @@
-# chochop ✂
+# chop chop ✂
 
 Trocea cualquier audio en samples listos para el **Bastl Kastle 2 Wave Bard**.
 

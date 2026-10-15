@@ -73,7 +73,7 @@ function renderMeta() {
 // The pack name names the ZIP and its folder, and seeds auto sample names
 // (first 5 valid characters). Hand-edited sample names are kept.
 const packSlug = () => (state.pack.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'chochop');
+  .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'chop-chop');
 function setPack(name) {
   state.pack = String(name).slice(0, 40);
   state.stem = cleanName(state.pack).slice(0, 5) || 'SMP';
