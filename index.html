@@ -39,6 +39,7 @@
       <button type="button" data-lang="gl" lang="gl" title="Galego">GL</button>
       <button type="button" data-lang="en" lang="en" title="English">EN</button>
     </div>
+    <button type="button" id="howBtn" class="btn icon" data-i18n-title="howBtn" data-i18n-aria="howBtn">?</button>
     <label class="btn" for="file" data-i18n="open">Abrir audio</label>
     <input id="file" type="file" accept="audio/*,.wav,.mp3,.aif,.aiff,.ogg,.flac,.m4a" hidden>
     <details class="recmenu" id="recmenu">
@@ -53,18 +54,13 @@
 
 <main>
   <section id="drop" class="drop">
-    <div class="hero">
-      <h1>dig <span>&amp;</span> chop</h1>
-      <ol class="steps">
-        <li data-i18n-html="step1"></li>
-        <li data-i18n-html="step2"></li>
-        <li data-i18n-html="step3"></li>
-      </ol>
+    <div class="dropbox">
+      <p class="droptitle" data-i18n="dropT">Arrastra aquí un audio</p>
       <div class="herobtns">
-        <label class="btn primary big" for="file" data-i18n="open">Abrir audio</label>
-        <button type="button" id="heroRec" class="btn big rec" data-i18n="rec">● Grabar</button>
+        <label class="btn primary" for="file" data-i18n="open">Abrir audio</label>
+        <button type="button" id="heroRec" class="btn rec" data-i18n="rec">● Grabar</button>
       </div>
-      <p class="muted small" data-i18n="heroNote"></p>
+      <p class="muted small" data-i18n="dropNote"></p>
     </div>
   </section>
 
@@ -109,11 +105,6 @@
       </div>
     </div>
 
-    <details class="help">
-      <summary data-i18n="help">Cómo se usa</summary>
-      <p data-i18n-html="help1"></p>
-      <p data-i18n-html="help2"></p>
-    </details>
 
     <div class="panels">
       <section class="list">
@@ -186,6 +177,21 @@
   <button type="button" id="recCancel" class="btn sm ghost" data-i18n="cancel">Cancelar</button>
   <p id="recHint" class="rechint"></p>
 </div>
+<dialog id="howto" class="howto" aria-labelledby="howTitle">
+  <h2 id="howTitle"><span class="logo">chochop</span> <span class="muted">dig &amp; chop</span></h2>
+  <p data-i18n="howIntro"></p>
+  <p class="muted" data-i18n="howStart"></p>
+  <div class="parts">
+    <section><span class="step dig-step">Dig</span><p data-i18n-html="howDig"></p></section>
+    <section><span class="step">Chop</span><p data-i18n-html="howChop"></p></section>
+  </div>
+  <p data-i18n-html="howEnd"></p>
+  <p class="muted small" data-i18n-html="help2"></p>
+  <div class="howfoot">
+    <label class="check"><input type="checkbox" id="howNoShow"> <span data-i18n="noShow">No mostrar más</span></label>
+    <button type="button" id="howClose" class="btn primary" data-i18n="close">Cerrar</button>
+  </div>
+</dialog>
 <div id="toast" class="toast" hidden></div>
 <script type="module" src="app.js"></script>
 </body>

@@ -891,6 +891,7 @@ function bindGlobal() {
   els.exportBtn.addEventListener('click', exportZip);
 
   document.addEventListener('keydown', (e) => {
+    if ($('howto').open) return;
     if (e.key === 'Escape' && els.recmenu.open) { els.recmenu.open = false; return; }
     if (!state.buffer || rec) return;
     const tag = document.activeElement?.tagName;
@@ -928,6 +929,21 @@ function bindLang() {
   applyI18n();
 }
 
+// "How it works" dialog: shown on arrival unless dismissed for good.
+const HOWTO_KEY = 'chochop.howto';
+function bindHowto() {
+  const d = $('howto'), noShow = $('howNoShow');
+  const hidden = () => { try { return localStorage.getItem(HOWTO_KEY) === 'hide'; } catch { return false; } };
+  const open = () => { noShow.checked = hidden(); if (!d.open) d.showModal(); };
+  d.addEventListener('close', () => {
+    try { noShow.checked ? localStorage.setItem(HOWTO_KEY, 'hide') : localStorage.removeItem(HOWTO_KEY); } catch {}
+  });
+  $('howClose').addEventListener('click', () => d.close());
+  d.addEventListener('click', (e) => { if (e.target === d) d.close(); }); // backdrop
+  $('howBtn').addEventListener('click', open);
+  if (!hidden()) open();
+}
+
 function bindPack() {
   els.pack.addEventListener('input', () => {
     setPack(els.pack.value);
@@ -937,6 +953,7 @@ function bindPack() {
 }
 
 bindLang();
+bindHowto();
 bindPack();
 bindGlobal();
 bindRec();

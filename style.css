@@ -69,7 +69,8 @@ main { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 1
 .btn.primary { background: var(--wave); border-color: var(--wave); color: #071a0d; }
 .btn.primary:hover:not(:disabled) { filter: brightness(1.1); }
 .btn.sm { padding: 6px 10px; }
-.btn.big { padding: 13px 20px; font-size: 14px; }
+.btn.icon { width: 32px; justify-content: center; padding: 8px 0; color: var(--muted); }
+.btn.icon:hover { color: var(--ink); }
 .btn.ghost { background: transparent; }
 .btn.danger { color: var(--danger); }
 .btn.rec { color: var(--rec); }
@@ -105,20 +106,16 @@ input[type=range], input[type=checkbox], input[type=radio] { accent-color: var(-
 .menu span { color: var(--muted); font-size: 12px; }
 
 /* ---------- empty state ---------- */
-.drop {
-  flex: 1; display: grid; place-items: center; text-align: center;
-  border: 1px dashed transparent; border-radius: 12px; padding: 32px 16px;
+.drop { flex: 1; display: grid; place-items: center; text-align: center; padding: 24px 0; }
+.drop.over .dropbox { background: rgba(91, 227, 127, 0.05); }
+.dropbox {
+  width: min(560px, 100%); display: grid; justify-items: center; gap: 16px;
+  border: 1px dashed var(--line-2); border-radius: 10px; padding: 56px 24px;
 }
-.drop.over { border-color: var(--wave); background: rgba(91, 227, 127, 0.05); }
-.hero { max-width: 520px; display: grid; justify-items: center; gap: 22px; }
-.hero h1 { margin: 0; font: clamp(40px, 9vw, 72px)/1 "Silkscreen", var(--mono); letter-spacing: 2px; }
-.hero h1 span { color: var(--accent); }
-.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; text-align: left; color: var(--muted); counter-reset: s; }
-.steps li { counter-increment: s; display: flex; gap: 12px; align-items: baseline; }
-.steps li::before { content: counter(s); font: 11px "Silkscreen", var(--mono); color: var(--wave); width: 1.2em; }
-.steps b { color: var(--ink); }
+.drop.over .dropbox { border-color: var(--wave); }
+.droptitle { margin: 0; font-size: 16px; font-weight: 600; }
+.dropbox p { margin: 0; }
 .herobtns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.hero p { margin: 0; }
 
 /* ---------- editor ---------- */
 .filebar { display: flex; gap: 12px; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; }
@@ -160,10 +157,6 @@ input[type=range], input[type=checkbox], input[type=radio] { accent-color: var(-
 #memfill.over { background: var(--danger); }
 #memtext.over { color: var(--danger); }
 
-.help { margin: 10px 0 18px; color: var(--muted); font-size: 12px; }
-.help summary { cursor: pointer; width: max-content; }
-.help summary:hover { color: var(--ink); }
-.help p { margin: 6px 0 0; max-width: 820px; }
 
 .panels { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
 @media (max-width: 860px) {
@@ -212,6 +205,24 @@ h2 .step { margin-right: 6px; vertical-align: 1px; }
 .packname { display: grid; gap: 4px; flex: 1 1 200px; max-width: 320px; color: var(--muted); font-size: 12px; }
 .packname input { width: 100%; font-size: 14px; }
 .exportgo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* how-to dialog */
+.howto {
+  width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto;
+  padding: 22px 24px; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.howto::backdrop { background: rgba(0, 0, 0, 0.6); }
+.howto h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 14px; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--ink); }
+.howto h2 .logo { font-size: 18px; }
+.howto p { margin: 0 0 12px; }
+.parts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 14px; }
+@media (max-width: 560px) { .parts { grid-template-columns: 1fr; } }
+.parts section { border: 1px solid var(--line); border-radius: 6px; padding: 12px; background: var(--bg); }
+.parts p { margin: 8px 0 0; }
+.step.dig-step { background: var(--wave); }
+.howfoot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.howfoot .check { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; }
 
 .foot { max-width: 1200px; margin: 0 auto; padding: 12px 20px 36px; font-size: 12px; }
 
