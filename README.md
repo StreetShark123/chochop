@@ -1,6 +1,6 @@
 # chop chop ✂
 
-Trocea cualquier audio en samples listos para el **Bastl Kastle 2 Wave Bard**.
+**Dig & chop**: saca samples de cualquier audio, directamente en el navegador.
 
 Es una página web estática: se abre en el navegador y todo el audio se procesa en local, sin subir nada a ningún sitio.
 
@@ -12,8 +12,8 @@ Es una página web estática: se abre en el navegador y todo el audio se procesa
 - **Dig**: «saca 8 trozos de 2 s» al azar (empezando en golpes), repartidos por todo el audio o seguidos desde el cursor. Marca con ★ los que te gusten y vuelve a cavar: solo cambian los demás.
 - **Chop**: arrastra el centro de un trozo para moverlo y sus bordes para ajustarlo. Doble clic añade uno; arrastrar en vacío crea uno a mano.
 - Ajustes por trozo: nombre de 8 caracteres, mono/estéreo, velocidad (×1, ×0,75, ×0,5, ×0,25, estilo cinta), fades, normalizar y al revés.
-- **Escucha** cada trozo, o todos seguidos o en orden aleatorio y en bucle, como los tocaría el Bard.
-- Un medidor indica cuánta memoria del Wave Bard ocupas (≈ 89 s en mono / 44 s en estéreo a 44,1 kHz).
+- **Escucha** cada trozo, o todos seguidos o en orden aleatorio y en bucle.
+- Un medidor indica la duración total de los trozos (la barra llega a 89 s, la memoria de un Wave Bard en mono).
 - **Descarga** un ZIP con el nombre del pack que elijas: WAV de 16 bits a 44,1 kHz, en carpetas de 8 (`banco1`, `banco2`…) con nombres válidos de 8 caracteres. El nombre del pack también da nombre a los sonidos, salvo los que renombres a mano.
 - En castellano, galego e English.
 
@@ -31,7 +31,7 @@ Es una página web estática: se abre en el navegador y todo el audio se procesa
 | Esc | Deseleccionar |
 | Rueda | Zoom · Mayús + rueda: desplazar |
 
-## Cargar en el Wave Bard
+## Ejemplo: cargarlos en un Bastl Wave Bard
 
 1. Exporta el ZIP y descomprímelo.
 2. Abre la [web app de Bastl](https://apps.bastl-instruments.com/wave-bard-sample-loader/) y arrastra los WAV de cada carpeta a un banco.

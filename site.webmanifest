@@ -1,7 +1,7 @@
 {
   "name": "chop chop · dig & chop",
   "short_name": "chop chop",
-  "description": "Saca samples de cualquier audio para el Bastl Kastle 2 Wave Bard",
+  "description": "Saca samples de cualquier audio, directamente en el navegador.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b0c0b",

@@ -310,7 +310,7 @@ function renderMeter() {
   const pct = used / BUDGET_SAMPLES;
   els.memfill.style.width = Math.min(100, pct * 100) + '%';
   els.memfill.classList.toggle('over', pct > 1);
-  els.memtext.textContent = `Bard ${(used / TARGET_RATE).toFixed(1)} / ${Math.round(BUDGET_SAMPLES / TARGET_RATE)} s${pct > 1 ? t('memOver') : ''}`;
+  els.memtext.textContent = `Total ${(used / TARGET_RATE).toFixed(1)} s${pct > 1 ? t('memOver') : ''}`;
   const n = state.regions.length;
   const nb = Math.ceil(n / BANK_SIZE);
   els.exportInfo.textContent = n
@@ -674,8 +674,6 @@ function dig() {
 async function exportZip() {
   const list = sorted();
   if (!list.length) return;
-  const used = list.reduce((a, r) => a + regionCost(r), 0);
-  if (used > BUDGET_SAMPLES && !confirm(t('overBudget'))) return;
   els.exportBtn.disabled = true;
   try {
     const names = uniqueNames(list.map((r) => r.name));
