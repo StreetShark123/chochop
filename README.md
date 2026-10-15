@@ -1,6 +1,6 @@
 # chop chop ✂
 
-**Dig & chop**: saca samples de cualquier audio, directamente en el navegador.
+**dig · chop · download**: saca samples de cualquier audio, directamente en el navegador.
 
 Es una página web estática: se abre en el navegador y todo el audio se procesa en local, sin subir nada a ningún sitio.
 

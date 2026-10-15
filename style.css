@@ -202,13 +202,14 @@ h2 .step { margin-right: 6px; vertical-align: 1px; }
   display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 16px;
   margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line);
 }
+.exporthead { flex-basis: 100%; }
 .packname { display: grid; gap: 4px; flex: 1 1 200px; max-width: 320px; color: var(--muted); font-size: 12px; }
 .packname input { width: 100%; font-size: 14px; }
 .exportgo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* how-to dialog */
 .howto {
-  width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto;
+  width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto;
   padding: 22px 24px; color: var(--ink); background: var(--panel);
   border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
@@ -216,11 +217,12 @@ h2 .step { margin-right: 6px; vertical-align: 1px; }
 .howto h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 14px; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--ink); }
 .howto h2 .logo { font-size: 18px; }
 .howto p { margin: 0 0 12px; }
-.parts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 14px; }
-@media (max-width: 560px) { .parts { grid-template-columns: 1fr; } }
+.parts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 14px; }
+@media (max-width: 640px) { .parts { grid-template-columns: 1fr; } }
 .parts section { border: 1px solid var(--line); border-radius: 6px; padding: 12px; background: var(--bg); }
 .parts p { margin: 8px 0 0; }
 .step.dig-step { background: var(--wave); }
+.step.dl-step { background: var(--accent); }
 .howfoot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .howfoot .check { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; }
 
