@@ -9,6 +9,8 @@ const els = {
   wave: $('wave'), overview: $('overview'), regions: $('regions'), count: $('count'),
   memtext: $('memtext'), memfill: $('memfill'), exportBtn: $('export'), toast: $('toast'),
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
+  recmenu: $('recmenu'), recbar: $('recbar'), recLabel: $('recLabel'), recTime: $('recTime'),
+  recLevel: $('recLevel'), recHint: $('recHint'),
   automode: $('automode'), sens: $('sens'), sensWrap: $('sensWrap'), parts: $('parts'), partsWrap: $('partsWrap'),
 };
 
@@ -34,25 +36,30 @@ async function loadFile(file) {
     toast('Decodificando…');
     const ab = await file.arrayBuffer();
     const buf = await audio().decodeAudioData(ab);
-    state.buffer = buf;
-    state.mono = mixdown(buf);
-    state.peaks = buildPeaks(state.mono);
-    state.stem = cleanName(file.name.replace(/\.[^.]+$/, '')).slice(0, 5) || 'SMP';
-    state.regions = [];
-    state.sel = null;
-    state.cursor = 0;
-    state.view = { start: 0, end: buf.duration };
-    els.fname.textContent = file.name;
-    els.fmeta.textContent = `${fmtTime(buf.duration)} · ${buf.numberOfChannels === 1 ? 'mono' : 'estéreo'} · ${buf.sampleRate} Hz`;
-    els.drop.hidden = true;
-    els.editor.hidden = false;
-    resize();
-    refresh();
+    setBuffer(buf, file.name);
     hideToast();
   } catch (e) {
     console.error(e);
     toast('No he podido leer ese audio. Prueba con WAV o MP3.', 3500);
   }
+}
+
+function setBuffer(buf, name) {
+  stop();
+  state.buffer = buf;
+  state.mono = mixdown(buf);
+  state.peaks = buildPeaks(state.mono);
+  state.stem = cleanName(name.replace(/\.[^.]+$/, '')).slice(0, 5) || 'SMP';
+  state.regions = [];
+  state.sel = null;
+  state.cursor = 0;
+  state.view = { start: 0, end: buf.duration };
+  els.fname.textContent = name;
+  els.fmeta.textContent = `${fmtTime(buf.duration)} · ${buf.numberOfChannels === 1 ? 'mono' : 'estéreo'} · ${buf.sampleRate} Hz`;
+  els.drop.hidden = true;
+  els.editor.hidden = false;
+  resize();
+  refresh();
 }
 
 function mixdown(buf) {
@@ -162,7 +169,7 @@ function draw() {
   ctx.clearRect(0, 0, w, h);
   // regions
   const edge = css('--region-edge');
-  ctx.font = `${15 * dpr}px VT323, ui-monospace, monospace`;
+  ctx.font = `${11 * dpr}px 'JetBrains Mono', ui-monospace, monospace`;
   sorted().forEach((r, i) => {
     const x1 = tToX(r.start), x2 = tToX(r.end);
     if (x2 < 0 || x1 > w) return;
@@ -172,7 +179,7 @@ function draw() {
     ctx.fillStyle = isSel ? css('--accent') : edge;
     ctx.fillRect(x1, 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
     ctx.fillRect(x2 - dpr * (isSel ? 2 : 1), 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
-    if (x2 - x1 > 28 * dpr) ctx.fillText(`${i + 1} ${r.name}`, x1 + 4 * dpr, 14 * dpr);
+    if (x2 - x1 > 28 * dpr) ctx.fillText(`${i + 1} ${r.name}`, x1 + 4 * dpr, 13 * dpr);
   });
   // centre line + wave
   ctx.fillStyle = css('--line');
@@ -564,6 +571,156 @@ async function exportZip() {
   }
 }
 
+// ---------- recording ----------
+// Captures raw PCM through an AudioWorklet (no lossy re-encode) with Chrome's
+// voice processing turned off, then trims leading/trailing silence.
+const REC_MAX_S = 300;
+const REC_SILENCE = 0.001; // ≈ -60 dBFS
+const RAW = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+const REC_WORKLET = `
+class Rec extends AudioWorkletProcessor {
+  constructor() {
+    super(); this.b = null; this.n = 0;
+    this.port.onmessage = () => { this.flush(); this.port.postMessage('done'); };
+  }
+  flush() { if (this.b && this.n) this.port.postMessage(this.b.map((a) => a.slice(0, this.n))); this.b = null; this.n = 0; }
+  process(inputs) {
+    const x = inputs[0];
+    if (!x || !x.length) return true;
+    if (!this.b) this.b = x.map(() => new Float32Array(4096));
+    for (let c = 0; c < this.b.length; c++) this.b[c].set(x[c] || x[0], this.n);
+    this.n += x[0].length;
+    if (this.n >= 4096) { this.port.postMessage(this.b, this.b.map((a) => a.buffer)); this.b = null; this.n = 0; }
+    return true;
+  }
+}
+registerProcessor('rec', Rec);`;
+let rec = null;
+let recWorklet = null;
+
+async function startRec(kind) {
+  els.recmenu.open = false;
+  if (rec) return;
+  if (state.regions.length && !confirm('La grabación sustituirá el audio actual y sus cortes. ¿Seguir?')) return;
+  stop();
+  let stream;
+  try {
+    stream = kind === 'tab'
+      ? await navigator.mediaDevices.getDisplayMedia({
+        video: true, audio: { ...RAW, suppressLocalAudioPlayback: false },
+        systemAudio: 'include', selfBrowserSurface: 'exclude', surfaceSwitching: 'include',
+      })
+      : await navigator.mediaDevices.getUserMedia({ audio: { ...RAW, channelCount: { ideal: 2 } } });
+  } catch (e) {
+    if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') {
+      console.error(e);
+      toast('No he podido empezar a grabar en este navegador.', 3500);
+    }
+    return;
+  }
+  const track = stream.getAudioTracks()[0];
+  if (!track) {
+    stream.getTracks().forEach((t) => t.stop());
+    toast('No llega audio. Elige una pestaña y marca «Compartir también el audio de la pestaña» (solo Chrome/Edge).', 6000);
+    return;
+  }
+  const ctx = audio();
+  await ctx.resume();
+  recWorklet ||= ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([REC_WORKLET], { type: 'text/javascript' })));
+  await recWorklet;
+  const ch = kind === 'tab' ? 2 : Math.min(2, track.getSettings().channelCount || 1);
+  const src = ctx.createMediaStreamSource(stream);
+  const node = new AudioWorkletNode(ctx, 'rec', { channelCount: ch, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+  const mute = ctx.createGain();
+  mute.gain.value = 0; // keep the node pulled by the graph without monitoring the input
+  src.connect(node).connect(mute).connect(ctx.destination);
+
+  const r = { kind, stream, src, node, mute, ch, sr: ctx.sampleRate, chunks: [], frames: 0, peak: 0, heard: false };
+  rec = r;
+  node.port.onmessage = (e) => {
+    if (e.data === 'done') { r.onDone?.(); return; }
+    r.chunks.push(e.data);
+    r.frames += e.data[0].length;
+    let p = 0;
+    for (const c of e.data) for (let i = 0; i < c.length; i += 4) { const a = Math.abs(c[i]); if (a > p) p = a; }
+    r.peak = Math.max(p, r.peak * 0.8);
+    if (p > REC_SILENCE) r.heard = true;
+    if (r.frames / r.sr >= REC_MAX_S) stopRec(true);
+  };
+  stream.getTracks().forEach((t) => t.addEventListener('ended', () => stopRec(true)));
+
+  els.recLabel.textContent = kind === 'tab' ? 'Grabando pestaña' : 'Grabando micro';
+  els.recHint.textContent = kind === 'tab' ? 'Dale al play en la pestaña que has compartido. El silencio del principio y del final se recorta solo.' : '';
+  els.recbar.hidden = false;
+  r.timer = setInterval(() => {
+    els.recTime.textContent = fmtClock(r.frames / r.sr) + ` / ${REC_MAX_S / 60}:00`;
+    els.recLevel.style.width = Math.min(100, Math.sqrt(r.peak) * 100) + '%';
+    els.recLevel.classList.toggle('hot', r.peak > 0.98);
+    if (kind === 'tab' && !r.heard && r.frames / r.sr > 6) {
+      els.recHint.textContent = 'Aún no llega sonido. ¿Está sonando la pestaña? Algunas webs (Spotify, Netflix…) bloquean la grabación y solo dan silencio.';
+    } else if (r.heard && kind === 'tab') {
+      els.recHint.textContent = 'Llega sonido. Para cuando quieras.';
+    }
+  }, 100);
+}
+
+async function stopRec(keep) {
+  const r = rec;
+  if (!r || r.stopping) return;
+  r.stopping = true;
+  clearInterval(r.timer);
+  await new Promise((res) => { r.onDone = res; r.node.port.postMessage('flush'); setTimeout(res, 600); });
+  r.stream.getTracks().forEach((t) => t.stop());
+  r.src.disconnect(); r.node.disconnect(); r.mute.disconnect();
+  rec = null;
+  els.recbar.hidden = true;
+  els.recTime.textContent = '0:00';
+  els.recLevel.style.width = '0';
+  if (!keep) return;
+
+  const total = r.chunks.reduce((n, k) => n + k[0].length, 0);
+  const chans = Array.from({ length: r.ch }, (_, c) => {
+    const out = new Float32Array(total);
+    let o = 0;
+    for (const k of r.chunks) { out.set(k[c] || k[0], o); o += k[0].length; }
+    return out;
+  });
+  let first = -1, last = -1;
+  for (let i = 0; i < total; i++) if (chans.some((d) => Math.abs(d[i]) > REC_SILENCE)) { first = i; break; }
+  for (let i = total - 1; i > first; i--) if (chans.some((d) => Math.abs(d[i]) > REC_SILENCE)) { last = i; break; }
+  if (first < 0) {
+    toast('Solo ha llegado silencio. Si era Spotify u otra web con protección, no deja grabar.', 5000);
+    return;
+  }
+  const pad = Math.round(0.01 * r.sr);
+  const a = Math.max(0, first - pad), b = Math.min(total, Math.max(last, first) + pad + 1);
+  const buf = audio().createBuffer(r.ch, b - a, r.sr);
+  chans.forEach((d, c) => buf.copyToChannel(d.subarray(a, b), c));
+  const t = new Date();
+  const hhmm = `${String(t.getHours()).padStart(2, '0')}${String(t.getMinutes()).padStart(2, '0')}`;
+  setBuffer(buf, `${r.kind === 'tab' ? 'tab' : 'mic'}-${hhmm}.wav`);
+  toast(`Grabados ${fmtTime(buf.duration)}. A trocear.`, 2000);
+}
+
+function fmtClock(s) {
+  const m = Math.floor(s / 60);
+  return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+}
+
+function bindRec() {
+  const md = navigator.mediaDevices;
+  const canTab = !!md?.getDisplayMedia && !/Mobi|Android/i.test(navigator.userAgent);
+  const canMic = !!md?.getUserMedia;
+  $('recTab').hidden = !canTab;
+  $('recMic').hidden = !canMic;
+  els.recmenu.hidden = !canTab && !canMic;
+  $('recTab').addEventListener('click', () => startRec('tab'));
+  $('recMic').addEventListener('click', () => startRec('mic'));
+  $('recStop').addEventListener('click', () => stopRec(true));
+  $('recCancel').addEventListener('click', () => stopRec(false));
+  document.addEventListener('click', (e) => { if (!els.recmenu.contains(e.target)) els.recmenu.open = false; });
+}
+
 // ---------- misc ----------
 function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
 let toastTimer = null;
@@ -598,7 +755,8 @@ function bindGlobal() {
   els.exportBtn.addEventListener('click', exportZip);
 
   document.addEventListener('keydown', (e) => {
-    if (!state.buffer) return;
+    if (e.key === 'Escape' && els.recmenu.open) { els.recmenu.open = false; return; }
+    if (!state.buffer || rec) return;
     const tag = document.activeElement?.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (e.code === 'Space') {
@@ -625,5 +783,6 @@ function bindGlobal() {
 }
 
 bindGlobal();
+bindRec();
 bindWave();
 bindInspector();
