@@ -162,7 +162,7 @@ function draw() {
   ctx.clearRect(0, 0, w, h);
   // regions
   const edge = css('--region-edge');
-  ctx.font = `${11 * dpr}px ui-monospace, monospace`;
+  ctx.font = `${15 * dpr}px VT323, ui-monospace, monospace`;
   sorted().forEach((r, i) => {
     const x1 = tToX(r.start), x2 = tToX(r.end);
     if (x2 < 0 || x1 > w) return;
@@ -172,7 +172,7 @@ function draw() {
     ctx.fillStyle = isSel ? css('--accent') : edge;
     ctx.fillRect(x1, 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
     ctx.fillRect(x2 - dpr * (isSel ? 2 : 1), 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
-    if (x2 - x1 > 28 * dpr) ctx.fillText(`${i + 1} ${r.name}`, x1 + 4 * dpr, 13 * dpr);
+    if (x2 - x1 > 28 * dpr) ctx.fillText(`${i + 1} ${r.name}`, x1 + 4 * dpr, 14 * dpr);
   });
   // centre line + wave
   ctx.fillStyle = css('--line');

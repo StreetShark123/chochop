@@ -5,20 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>chochop</title>
 <meta name="description" content="Trocea audio en samples listos para el Bastl Kastle 2 Wave Bard">
+<meta name="theme-color" content="#000000">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=VT323&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo">chochop</span><span class="tag">trocea audio para el Wave Bard</span></div>
+  <div class="brand"><span class="logo" data-text="chochop">chochop</span><span class="tag">trocea audio para el Wave Bard</span></div>
   <div class="actions">
     <label class="btn" for="file">Abrir audio</label>
     <input id="file" type="file" accept="audio/*,.wav,.mp3,.aif,.aiff,.ogg,.flac,.m4a" hidden>
     <button id="export" class="btn primary" disabled>Exportar ZIP</button>
   </div>
 </header>
+<div class="ticker" aria-hidden="true"><div class="ticker-track">
+  <span>★ chochop v1.0 ★ trocea · nombra · exporta ★ wav 16 bit @ 44.1 khz ★ 8 bancos × 8 samples ★ todo en local, nada sale de tu máquina ★ greetz → bastl instruments · kastle 2 · wave bard ★ pulsa espacio para escuchar ★</span>
+  <span>★ chochop v1.0 ★ trocea · nombra · exporta ★ wav 16 bit @ 44.1 khz ★ 8 bancos × 8 samples ★ todo en local, nada sale de tu máquina ★ greetz → bastl instruments · kastle 2 · wave bard ★ pulsa espacio para escuchar ★</span>
+</div></div>
 
 <main>
   <section id="drop" class="drop">
+    <div class="drop-art" aria-hidden="true">░▒▓█ ✂ █▓▒░</div>
     <p><strong>Arrastra aquí un audio</strong> o pulsa «Abrir audio».</p>
     <p class="muted">Todo se procesa en tu navegador; nada se sube a ningún sitio.</p>
   </section>
