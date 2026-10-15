@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>chochop</title>
 <meta name="description" content="Trocea audio en samples listos para el Bastl Kastle 2 Wave Bard">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#0b0c0b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo" data-text="chochop">chochop</span><span class="tag">trocea audio para el Wave Bard</span></div>
+  <div class="brand"><span class="logo">chochop</span><span class="tag">samples para el Wave Bard</span></div>
   <div class="actions">
     <label class="btn" for="file">Abrir audio</label>
     <input id="file" type="file" accept="audio/*,.wav,.mp3,.aif,.aiff,.ogg,.flac,.m4a" hidden>
@@ -30,15 +30,15 @@
 
 <main>
   <section id="drop" class="drop">
-    <div class="drop-art" aria-hidden="true">░▒▓█ ✂ █▓▒░</div>
-    <p><strong>Arrastra aquí un audio</strong>, pulsa «Abrir audio» o graba uno con «● Grabar».</p>
-    <p class="muted">Todo se procesa en tu navegador; nada se sube a ningún sitio.</p>
+    <p><strong>Arrastra aquí un audio</strong></p>
+    <p class="muted">o usa «Abrir audio» o «● Grabar». Todo se procesa en tu navegador; nada se sube a ningún sitio.</p>
   </section>
 
   <section id="editor" hidden>
     <div class="filebar">
       <span id="fname" class="fname"></span>
       <span id="fmeta" class="muted"></span>
+      <button id="zoomall" class="link">Ver todo</button>
     </div>
 
     <div class="wavewrap">
@@ -46,36 +46,38 @@
       <canvas id="overview"></canvas>
     </div>
 
-    <div class="toolbar">
-      <div class="group">
-        <button id="zoomin" class="btn sm" title="Zoom (también rueda del ratón)">+</button>
-        <button id="zoomout" class="btn sm">−</button>
-        <button id="zoomsel" class="btn sm">Zoom al corte</button>
-        <button id="zoomall" class="btn sm">Ver todo</button>
-      </div>
-      <div class="group">
-        <button id="playall" class="btn sm">▶ Original desde el cursor</button>
-        <button id="stop" class="btn sm">■ Parar</button>
-      </div>
-      <div class="group">
-        <label class="inline">Corte automático
-          <select id="automode">
-            <option value="onsets">por golpes</option>
-            <option value="equal">en partes iguales</option>
-          </select>
-        </label>
-        <label class="inline" id="sensWrap">Sensibilidad <input id="sens" type="range" min="1" max="10" value="5"></label>
-        <label class="inline" id="partsWrap" hidden>Partes <input id="parts" type="number" min="2" max="64" value="8"></label>
-        <button id="autochop" class="btn sm">Trocear</button>
-        <button id="clear" class="btn sm ghost">Borrar cortes</button>
+    <div class="bar">
+      <span class="barlabel">Escuchar</span>
+      <button id="playall" class="btn sm" title="Desde el cursor (clic en la onda para moverlo)">▶ Original</button>
+      <button id="seqPlay" class="btn sm" title="Los cortes procesados, uno tras otro, en bucle">▶ Seguido</button>
+      <button id="seqRand" class="btn sm" title="Los cortes procesados en orden aleatorio, en bucle">⤨ Aleatorio</button>
+      <button id="stop" class="btn sm ghost" title="Espacio">■</button>
+      <div class="meter" title="Memoria del Wave Bard">
+        <span id="memtext"></span>
+        <div class="meterbar"><div id="memfill"></div></div>
       </div>
     </div>
-    <p class="hint muted">Arrastra sobre la onda para crear un corte (<kbd>Alt</kbd>+arrastrar para crearlo encima de otro) · arrastra sus bordes para ajustarlo · clic para seleccionarlo · <kbd>Espacio</kbd> escucha el corte · <kbd>Supr</kbd> lo borra · <kbd>←</kbd><kbd>→</kbd> cambian de corte · rueda = zoom, <kbd>Mayús</kbd>+rueda = desplazar</p>
 
-    <div class="meter">
-      <div class="meterlabel"><span>Memoria del Wave Bard</span><span id="memtext"></span></div>
-      <div class="meterbar"><div id="memfill"></div></div>
+    <div class="bar">
+      <span class="barlabel">Trocear</span>
+      <div class="seg" role="radiogroup" aria-label="Modo de troceo">
+        <label><input type="radio" name="mode" value="onsets" checked><span>Golpes</span></label>
+        <label><input type="radio" name="mode" value="equal"><span>Iguales</span></label>
+        <label><input type="radio" name="mode" value="random"><span>Al azar</span></label>
+      </div>
+      <label class="inline" id="sensWrap">Sensibilidad <input id="sens" type="range" min="1" max="10" value="5"></label>
+      <label class="inline" id="partsWrap" hidden><span id="partsLabel">Partes</span> <input id="parts" type="number" min="1" max="64" value="8"></label>
+      <label class="inline check"><input id="fixOn" type="checkbox"> Largo fijo</label>
+      <label class="inline" id="fixWrap" hidden><input id="fixLen" type="number" min="0.05" max="30" step="0.1" value="2"> s</label>
+      <button id="autochop" class="btn sm primary">Trocear</button>
+      <button id="clear" class="btn sm ghost">Borrar todo</button>
     </div>
+
+    <details class="help">
+      <summary>Cómo se usa</summary>
+      <p>Arrastra sobre la onda para crear un corte (<kbd>Alt</kbd> para crearlo encima de otro). Doble clic crea uno del largo fijo. Arrastra el centro de un corte para moverlo y sus bordes para ajustarlo. Con un corte seleccionado, «Trocear» trabaja solo dentro de él.</p>
+      <p><kbd>Espacio</kbd> escucha o para · <kbd>Supr</kbd> borra · <kbd>←</kbd><kbd>→</kbd> cambian de corte · <kbd>Esc</kbd> deselecciona · rueda = zoom, <kbd>Mayús</kbd>+rueda = desplazar.</p>
+    </details>
 
     <div class="panels">
       <section class="list">
@@ -83,10 +85,10 @@
         <ol id="regions"></ol>
       </section>
       <section class="inspector" id="inspector">
-        <h2>Corte seleccionado</h2>
-        <div id="noSel" class="muted">Ningún corte seleccionado.</div>
+        <h2>Corte</h2>
+        <div id="noSel" class="muted">Selecciona un corte para ajustarlo.</div>
         <form id="props" hidden>
-          <label>Nombre (máx. 8) <input id="pName" maxlength="8" autocomplete="off"></label>
+          <label>Nombre <input id="pName" maxlength="8" autocomplete="off"></label>
           <div class="row">
             <label>Inicio (s) <input id="pStart" type="number" step="0.001" min="0"></label>
             <label>Fin (s) <input id="pEnd" type="number" step="0.001" min="0"></label>
@@ -97,10 +99,10 @@
             </label>
             <label>Velocidad
               <select id="pSpeed">
-                <option value="1">×1 (original)</option>
-                <option value="0.75">×0,75 (más lento y grave)</option>
-                <option value="0.5">×0,5 (una octava abajo)</option>
-                <option value="0.25">×0,25 (dos octavas abajo)</option>
+                <option value="1">×1</option>
+                <option value="0.75">×0,75</option>
+                <option value="0.5">×0,5 (−1 octava)</option>
+                <option value="0.25">×0,25 (−2 octavas)</option>
               </select>
             </label>
           </div>
@@ -110,11 +112,11 @@
           </div>
           <div class="row checks">
             <label class="check"><input id="pNorm" type="checkbox"> Normalizar</label>
-            <label class="check"><input id="pRev" type="checkbox"> Invertir</label>
+            <label class="check"><input id="pRev" type="checkbox"> Al revés</label>
           </div>
           <div class="row">
-            <button type="button" id="pPlay" class="btn sm">▶ Escuchar procesado</button>
-            <button type="button" id="pApplyAll" class="btn sm ghost" title="Copia canales, velocidad, fades, normalizar e invertir a todos los cortes">Aplicar ajustes a todos</button>
+            <button type="button" id="pPlay" class="btn sm">▶ Escuchar</button>
+            <button type="button" id="pApplyAll" class="btn sm ghost" title="Copia canales, velocidad, fades, normalizar y al revés a todos los cortes">Copiar a todos</button>
             <button type="button" id="pDel" class="btn sm danger">Borrar</button>
           </div>
           <p class="muted small" id="pInfo"></p>
@@ -125,9 +127,9 @@
 </main>
 
 <footer class="foot muted">
-  Exporta WAV de 16 bits a 44,1 kHz agrupados en carpetas de 8 (un banco cada una). Cárgalos en la
+  WAV de 16 bits a 44,1 kHz en carpetas de 8 (un banco cada una). Cárgalos en la
   <a href="https://apps.bastl-instruments.com/wave-bard-sample-loader/" target="_blank" rel="noopener">web app de Bastl</a>.
-  Consejo: para que las escalas del Bard cuadren, los samples melódicos deberían estar en Do.
+  Los samples melódicos, mejor afinados en Do.
 </footer>
 
 <div id="recbar" class="recbar" hidden>

@@ -1,6 +1,6 @@
 import {
   TARGET_RATE, BUDGET_SAMPLES, BANK_SIZE, regionCost, cleanName, uniqueNames,
-  detectOnsets, onsetsToRanges, equalRanges, finish, encodeWav, makeZip, fmtTime,
+  detectOnsets, onsetsToRanges, equalRanges, randomRanges, finish, encodeWav, makeZip, fmtTime,
 } from './dsp.js';
 
 const $ = (id) => document.getElementById(id);
@@ -11,7 +11,8 @@ const els = {
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
   recmenu: $('recmenu'), recbar: $('recbar'), recLabel: $('recLabel'), recTime: $('recTime'),
   recLevel: $('recLevel'), recHint: $('recHint'),
-  automode: $('automode'), sens: $('sens'), sensWrap: $('sensWrap'), parts: $('parts'), partsWrap: $('partsWrap'),
+  sens: $('sens'), sensWrap: $('sensWrap'), parts: $('parts'), partsWrap: $('partsWrap'), partsLabel: $('partsLabel'),
+  fixOn: $('fixOn'), fixLen: $('fixLen'), fixWrap: $('fixWrap'), autochop: $('autochop'), seqPlay: $('seqPlay'), seqRand: $('seqRand'),
 };
 
 const state = {
@@ -120,6 +121,19 @@ function deleteRegion(id) {
   refresh();
 }
 
+// Fixed length: every chop keeps its start and gets the same duration.
+const fixedLen = () => (els.fixOn.checked ? clamp(+els.fixLen.value || 2, 0.05, 30) : 0);
+function applyFixedLen() {
+  const L = fixedLen();
+  if (!L || !state.buffer) return;
+  const dur = state.buffer.duration;
+  for (const r of state.regions) {
+    r.start = Math.min(r.start, Math.max(0, dur - L));
+    r.end = Math.min(dur, r.start + L);
+  }
+  refresh();
+}
+
 // ---------- drawing ----------
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 let dpr = 1;
@@ -223,6 +237,8 @@ function refresh() {
   renderMeter();
   renderInspector();
   els.exportBtn.disabled = state.regions.length === 0;
+  els.autochop.textContent = getSel() ? 'Trocear corte' : 'Trocear';
+  els.autochop.title = getSel() ? 'Trocea solo dentro del corte seleccionado (Esc para deseleccionar)' : 'Trocea todo el audio';
   draw();
 }
 
@@ -239,7 +255,9 @@ function renderList() {
   }
   list.forEach((r, i) => {
     const li = document.createElement('li');
+    li.dataset.id = r.id;
     if (r.id === state.sel) li.classList.add('sel');
+    if (seq && r.id === seq.now) li.classList.add('now');
     if (i > 0 && i % BANK_SIZE === 0) li.classList.add('newbank');
     const bank = document.createElement('span');
     bank.className = 'bank';
@@ -266,7 +284,8 @@ function renderMeter() {
   const pct = used / BUDGET_SAMPLES;
   els.memfill.style.width = Math.min(100, pct * 100) + '%';
   els.memfill.classList.toggle('over', pct > 1);
-  els.memtext.textContent = `${(used / TARGET_RATE).toFixed(1)} s de ${(BUDGET_SAMPLES / TARGET_RATE).toFixed(1)} s (mono) · ${Math.round(pct * 100)} %${pct > 1 ? ' — no cabe' : ''}`;
+  els.memtext.textContent = `Bard ${(used / TARGET_RATE).toFixed(1)} / ${Math.round(BUDGET_SAMPLES / TARGET_RATE)} s${pct > 1 ? ' · no cabe' : ''}`;
+  els.memtext.classList.toggle('over', pct > 1);
 }
 
 const P = {
@@ -423,6 +442,13 @@ function bindWave() {
     drag = null;
     refresh();
   };
+  c.addEventListener('dblclick', (e) => {
+    if (!state.buffer || hitTest(canvasX(e))) return;
+    const L = fixedLen() || +els.fixLen.value || 2;
+    const t = clamp(xToT(canvasX(e)), 0, Math.max(0, state.buffer.duration - L));
+    const r = addRegion(t, t + L);
+    if (r) { state.sel = r.id; refresh(); }
+  });
   c.addEventListener('pointerup', end);
   c.addEventListener('pointercancel', end);
   c.addEventListener('wheel', (e) => {
@@ -469,17 +495,34 @@ async function renderRegion(r) {
   return finish(chans, { reverse: r.reverse, normalize: r.normalize, fadeInMs: r.fadeIn, fadeOutMs: r.fadeOut });
 }
 
+// Processed chops are cached per region until any of their settings change.
+const rendered = new Map();
+async function renderedBuffer(r) {
+  const key = [state.buffer.length, r.start, r.end, r.mono, r.speed, r.fadeIn, r.fadeOut, r.normalize, r.reverse].join();
+  const hit = rendered.get(r.id);
+  if (hit && hit.key === key) return hit.buf;
+  const chans = await renderRegion(r);
+  const buf = audio().createBuffer(chans.length, chans[0].length, TARGET_RATE);
+  chans.forEach((d, i) => buf.copyToChannel(d, i));
+  rendered.set(r.id, { key, buf });
+  return buf;
+}
+
 function stop() {
   if (playing) { try { playing.src.stop(); } catch {} playing = null; }
+  if (seq) {
+    clearTimeout(seq.timer);
+    seq.srcs.forEach((s) => { try { s.stop(); } catch {} });
+    seq = null;
+    markNow();
+  }
 }
 
 async function playRegion(r) {
   stop();
   const ctx = audio();
   await ctx.resume();
-  const chans = await renderRegion(r);
-  const b = ctx.createBuffer(chans.length, chans[0].length, TARGET_RATE);
-  chans.forEach((d, i) => b.copyToChannel(d, i));
+  const b = await renderedBuffer(r);
   const src = ctx.createBufferSource();
   src.buffer = b;
   src.connect(ctx.destination);
@@ -509,31 +552,98 @@ function playheadTime() {
   return clamp(t, playing.from, playing.to);
 }
 
+let raf = 0;
 function tick() {
-  draw();
-  if (playing) requestAnimationFrame(tick);
+  if (raf) return;
+  const loop = () => { draw(); raf = playing ? requestAnimationFrame(loop) : 0; };
+  loop();
+}
+
+// ---------- sequence (like the Bard: chops back to back, in order or random) ----------
+let seq = null; // {mode, list, i, next, timer, srcs, now}
+
+async function playSeq(mode) {
+  const again = seq?.mode === mode;
+  stop();
+  if (again) { draw(); return; }
+  const list = sorted();
+  if (!list.length) { toast('Primero haz algunos cortes.', 1800); return; }
+  const ctx = audio();
+  await ctx.resume();
+  if (list.length > 8) toast('Preparando cortes…');
+  const bufs = await Promise.all(list.map(renderedBuffer));
+  hideToast();
+  const s = { mode, list, bufs, i: -1, next: ctx.currentTime + 0.05, srcs: new Set(), now: null };
+  seq = s;
+  markNow();
+  const pick = () => {
+    if (mode !== 'rand' || list.length < 2) return (s.i + 1) % list.length;
+    let j;
+    do j = Math.floor(Math.random() * list.length); while (j === s.i);
+    return j;
+  };
+  const pump = () => {
+    if (seq !== s) return;
+    while (s.next < ctx.currentTime + 0.25) {
+      s.i = pick();
+      const r = list[s.i], buf = s.bufs[s.i], at = s.next;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(at);
+      s.srcs.add(src);
+      src.onended = () => s.srcs.delete(src);
+      setTimeout(() => {
+        if (seq !== s) return;
+        playing = { src, t0: at, from: r.start, to: r.end, rate: r.speed, reverse: r.reverse };
+        s.now = r.id;
+        markNow();
+        tick();
+      }, Math.max(0, (at - ctx.currentTime) * 1000));
+      s.next += buf.duration;
+    }
+    s.timer = setTimeout(pump, 50);
+  };
+  pump();
+}
+
+function markNow() {
+  els.seqPlay.classList.toggle('on', seq?.mode === 'seq');
+  els.seqRand.classList.toggle('on', seq?.mode === 'rand');
+  for (const li of els.regions.children) li.classList.toggle('now', !!seq && +li.dataset.id === seq.now);
 }
 
 // ---------- auto chop ----------
+const chopMode = () => document.querySelector('input[name=mode]:checked').value;
+
 function autoChop() {
   const sel = getSel();
   const from = sel ? sel.start : 0;
   const to = sel ? sel.end : state.buffer.duration;
-  let ranges;
-  if (els.automode.value === 'equal') {
-    ranges = equalRanges(from, to, +els.parts.value || 8);
-  } else {
+  const mode = chopMode(), L = fixedLen(), n = clamp(Math.round(+els.parts.value || 8), 1, 64);
+  const onsets = () => {
     const sr = state.buffer.sampleRate;
     const data = state.mono.subarray(Math.floor(from * sr), Math.ceil(to * sr));
-    const on = detectOnsets(data, sr, +els.sens.value).map((t) => t + from);
-    ranges = onsetsToRanges(on, to, 4);
+    return detectOnsets(data, sr, +els.sens.value).map((t) => t + from);
+  };
+  let ranges;
+  if (mode === 'equal') {
+    ranges = equalRanges(from, to, n);
+    if (L) ranges = ranges.map(([a]) => [a, a + L]);
+  } else if (mode === 'random') {
+    ranges = randomRanges(onsets(), from, to, n, L);
+  } else if (L) {
+    // one chop per hit, skipping hits that fall inside the previous chop
+    ranges = [];
+    for (const t of onsets()) if (!ranges.length || t >= ranges.at(-1)[1]) ranges.push([t, t + L]);
+  } else {
+    ranges = onsetsToRanges(onsets(), to, 4);
   }
-  if (sel) state.regions = state.regions.filter((r) => r.id !== sel.id);
+  ranges = ranges.map(([a, b]) => [a, Math.min(b, to)]).filter(([a, b]) => b - a > 0.02);
+  state.regions = sel ? state.regions.filter((r) => r.id !== sel.id) : [];
   const base = sel ? { mono: sel.mono, speed: sel.speed, fadeIn: sel.fadeIn, fadeOut: sel.fadeOut, normalize: sel.normalize } : {};
   state.sel = null;
-  let first = null;
-  for (const [a, b] of ranges) { const r = addRegion(a, b, base); if (r && !first) first = r; }
-  if (first) state.sel = first.id;
+  for (const [a, b] of ranges) addRegion(a, b, base);
   refresh();
   toast(`${ranges.length} cortes ${sel ? 'dentro del corte seleccionado' : 'en todo el audio'}`, 1800);
 }
@@ -738,20 +848,23 @@ function bindGlobal() {
   ['dragleave', 'drop'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); els.drop.classList.remove('over'); }));
   document.addEventListener('drop', (e) => { const f = e.dataTransfer?.files?.[0]; if (f) loadFile(f); });
 
-  $('zoomin').addEventListener('click', () => zoom(0.5));
-  $('zoomout').addEventListener('click', () => zoom(2));
   $('zoomall').addEventListener('click', () => setView(0, state.buffer.duration));
-  $('zoomsel').addEventListener('click', () => { const r = getSel(); if (r) { const pad = (r.end - r.start) * 0.1; setView(r.start - pad, r.end + pad); } });
   $('playall').addEventListener('click', playOriginal);
+  els.seqPlay.addEventListener('click', () => playSeq('seq'));
+  els.seqRand.addEventListener('click', () => playSeq('rand'));
   $('stop').addEventListener('click', () => { stop(); draw(); });
   $('autochop').addEventListener('click', autoChop);
   $('clear').addEventListener('click', () => {
     if (state.regions.length && confirm('¿Borrar todos los cortes?')) { state.regions = []; state.sel = null; refresh(); }
   });
-  els.automode.addEventListener('change', () => {
-    const eq = els.automode.value === 'equal';
-    els.partsWrap.hidden = !eq; els.sensWrap.hidden = eq;
-  });
+  document.querySelectorAll('input[name=mode]').forEach((el) => el.addEventListener('change', () => {
+    const m = chopMode();
+    els.sensWrap.hidden = m === 'equal';
+    els.partsWrap.hidden = m === 'onsets';
+    els.partsLabel.textContent = m === 'random' ? 'Cuántos' : 'Partes';
+  }));
+  els.fixOn.addEventListener('change', () => { els.fixWrap.hidden = !els.fixOn.checked; applyFixedLen(); });
+  els.fixLen.addEventListener('input', applyFixedLen);
   els.exportBtn.addEventListener('click', exportZip);
 
   document.addEventListener('keydown', (e) => {
@@ -761,7 +874,7 @@ function bindGlobal() {
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (e.code === 'Space') {
       e.preventDefault();
-      if (playing) { stop(); draw(); return; }
+      if (playing || seq) { stop(); draw(); return; }
       const r = getSel();
       r ? playRegion(r) : playOriginal();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.sel) {

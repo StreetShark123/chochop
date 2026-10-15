@@ -104,6 +104,25 @@ export function equalRanges(start, end, parts) {
 }
 
 /**
+ * n random ranges inside [start, end]. Starts are drawn from `onsets` when
+ * there are enough (so chops land on hits), otherwise anywhere. Length is
+ * `len` if given, else random between 0.15 and 1.5 s. Sorted by start.
+ */
+export function randomRanges(onsets, start, end, n, len = 0, rand = Math.random) {
+  const span = end - start;
+  const pool = onsets.filter((t) => t >= start && t < end - 0.05);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const L = Math.min(span, len || 0.15 + rand() * 1.35);
+    const s = pool.length
+      ? pool.splice(Math.floor(rand() * pool.length), 1)[0]
+      : start + rand() * (span - L);
+    out.push([s, Math.min(end, s + L)]);
+  }
+  return out.sort((a, b) => a[0] - b[0]);
+}
+
+/**
  * Post-process rendered channels in place: reverse, normalize, fades.
  * channels: Float32Array[] at TARGET_RATE.
  */
