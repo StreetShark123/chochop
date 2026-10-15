@@ -176,6 +176,8 @@ h2 .step { margin-right: 6px; vertical-align: 1px; }
   padding: 4px 8px 4px 4px; border-radius: 4px; cursor: pointer;
 }
 #regions li:hover { background: var(--raise); }
+#regions li.empty { display: block; padding: 8px; cursor: default; }
+#regions li.empty:hover { background: none; }
 #regions li.sel { background: var(--accent-soft); }
 #regions li.sel .nm { color: var(--accent); }
 #regions li.now { box-shadow: inset 2px 0 0 var(--wave); }

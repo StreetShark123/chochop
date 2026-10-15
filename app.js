@@ -269,7 +269,7 @@ function renderList() {
   els.regions.innerHTML = '';
   if (!list.length) {
     const li = document.createElement('li');
-    li.className = 'muted';
+    li.className = 'muted empty';
     li.textContent = t('emptyList');
     els.regions.append(li);
     return;
