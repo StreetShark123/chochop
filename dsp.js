@@ -87,39 +87,48 @@ export function detectOnsets(data, rate, sensitivity = 5, minGapSec = 0.08) {
 }
 
 /** Turn onset times into [start, end] pairs, ending at the next onset or maxLen. */
-export function onsetsToRanges(onsets, total, maxLen = 4) {
-  const r = [];
-  for (let i = 0; i < onsets.length; i++) {
-    const s = onsets[i];
-    const e = Math.min(i + 1 < onsets.length ? onsets[i + 1] : total, s + maxLen, total);
-    if (e - s > 0.02) r.push([s, e]);
-  }
-  return r;
-}
-
-export function equalRanges(start, end, parts) {
-  const n = Math.max(1, Math.floor(parts));
-  const len = (end - start) / n;
-  return Array.from({ length: n }, (_, i) => [start + i * len, start + (i + 1) * len]);
-}
-
 /**
- * n random ranges inside [start, end]. Starts are drawn from `onsets` when
- * there are enough (so chops land on hits), otherwise anywhere. Length is
- * `len` if given, else random between 0.15 and 1.5 s. Sorted by start.
+ * Pick n windows of `len` seconds inside [0, dur] ("dig").
+ *  - random: random detected hits (falls back to anywhere), avoiding overlap
+ *    with `taken` ranges and with each other when possible.
+ *  - spread: evenly spread across the audio, each snapped to the nearest hit.
+ *  - row:    back to back from `from`, shifted left if they would run past the end.
+ * Returns [start, end] pairs sorted by start.
  */
-export function randomRanges(onsets, start, end, n, len = 0, rand = Math.random) {
-  const span = end - start;
-  const pool = onsets.filter((t) => t >= start && t < end - 0.05);
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const L = Math.min(span, len || 0.15 + rand() * 1.35);
-    const s = pool.length
-      ? pool.splice(Math.floor(rand() * pool.length), 1)[0]
-      : start + rand() * (span - L);
-    out.push([s, Math.min(end, s + L)]);
+export function digRanges({ onsets = [], dur, n, len, mode = 'random', from = 0, taken = [], rand = Math.random }) {
+  const L = Math.min(len, dur);
+  const maxStart = dur - L;
+  if (n <= 0 || L <= 0) return [];
+  const nearest = (t, within) => {
+    let best = t, d = within;
+    for (const o of onsets) if (o <= maxStart && Math.abs(o - t) < d) { d = Math.abs(o - t); best = o; }
+    return best;
+  };
+  let starts;
+  if (mode === 'row') {
+    const fit = Math.max(1, Math.min(n, Math.floor(dur / L)));
+    const s0 = Math.max(0, Math.min(from, dur - fit * L));
+    starts = Array.from({ length: fit }, (_, i) => s0 + i * L);
+  } else if (mode === 'spread') {
+    const slot = dur / n;
+    starts = Array.from({ length: n }, (_, i) => nearest(Math.max(0, Math.min(maxStart, slot * (i + 0.5) - L / 2)), slot / 2));
+  } else {
+    const pool = onsets.filter((t) => t <= maxStart);
+    const busy = taken.map(([a, b]) => [a, b]);
+    const free = (s) => busy.every(([a, b]) => s + L <= a || s >= b);
+    starts = [];
+    for (let i = 0; i < n; i++) {
+      let s = null;
+      for (let tries = 0; tries < 200 && s == null; tries++) {
+        const c = pool.length && tries < 150 ? pool[Math.floor(rand() * pool.length)] : rand() * maxStart;
+        if (free(c)) s = c;
+      }
+      if (s == null) s = pool.length ? pool[Math.floor(rand() * pool.length)] : rand() * maxStart;
+      busy.push([s, s + L]);
+      starts.push(s);
+    }
   }
-  return out.sort((a, b) => a[0] - b[0]);
+  return starts.map((s) => [s, Math.min(dur, s + L)]).sort((a, b) => a[0] - b[0]);
 }
 
 /**

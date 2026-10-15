@@ -1,6 +1,6 @@
 import {
   TARGET_RATE, BUDGET_SAMPLES, BANK_SIZE, regionCost, cleanName, uniqueNames,
-  detectOnsets, onsetsToRanges, equalRanges, randomRanges, finish, encodeWav, makeZip, fmtTime,
+  detectOnsets, digRanges, finish, encodeWav, makeZip, fmtTime,
 } from './dsp.js';
 
 const $ = (id) => document.getElementById(id);
@@ -11,8 +11,7 @@ const els = {
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
   recmenu: $('recmenu'), recbar: $('recbar'), recLabel: $('recLabel'), recTime: $('recTime'),
   recLevel: $('recLevel'), recHint: $('recHint'),
-  sens: $('sens'), sensWrap: $('sensWrap'), parts: $('parts'), partsWrap: $('partsWrap'), partsLabel: $('partsLabel'),
-  fixOn: $('fixOn'), fixLen: $('fixLen'), fixWrap: $('fixWrap'), autochop: $('autochop'), seqPlay: $('seqPlay'), seqRand: $('seqRand'),
+  digN: $('digN'), digLen: $('digLen'), seqPlay: $('seqPlay'), seqRand: $('seqRand'),
 };
 
 const state = {
@@ -59,6 +58,7 @@ function setBuffer(buf, name) {
   els.fmeta.textContent = `${fmtTime(buf.duration)} · ${buf.numberOfChannels === 1 ? 'mono' : 'estéreo'} · ${buf.sampleRate} Hz`;
   els.drop.hidden = true;
   els.editor.hidden = false;
+  els.exportBtn.hidden = false;
   resize();
   refresh();
 }
@@ -121,16 +121,21 @@ function deleteRegion(id) {
   refresh();
 }
 
-// Fixed length: every chop keeps its start and gets the same duration.
-const fixedLen = () => (els.fixOn.checked ? clamp(+els.fixLen.value || 2, 0.05, 30) : 0);
-function applyFixedLen() {
-  const L = fixedLen();
-  if (!L || !state.buffer) return;
-  const dur = state.buffer.duration;
+// Dig length: changing it resizes every chop that isn't starred.
+const digLen = () => clamp(+els.digLen.value || 2, 0.05, 30);
+function applyDigLen() {
+  if (!state.buffer) return;
+  const L = digLen(), dur = state.buffer.duration;
   for (const r of state.regions) {
+    if (r.keep) continue;
     r.start = Math.min(r.start, Math.max(0, dur - L));
     r.end = Math.min(dur, r.start + L);
   }
+  refresh();
+}
+
+function toggleKeep(r) {
+  r.keep = !r.keep;
   refresh();
 }
 
@@ -193,7 +198,7 @@ function draw() {
     ctx.fillStyle = isSel ? css('--accent') : edge;
     ctx.fillRect(x1, 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
     ctx.fillRect(x2 - dpr * (isSel ? 2 : 1), 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
-    if (x2 - x1 > 28 * dpr) ctx.fillText(`${i + 1} ${r.name}`, x1 + 4 * dpr, 13 * dpr);
+    if (x2 - x1 > 28 * dpr) ctx.fillText(`${i + 1} ${r.name}${r.keep ? ' ★' : ''}`, x1 + 4 * dpr, 13 * dpr);
   });
   // centre line + wave
   ctx.fillStyle = css('--line');
@@ -237,8 +242,6 @@ function refresh() {
   renderMeter();
   renderInspector();
   els.exportBtn.disabled = state.regions.length === 0;
-  els.autochop.textContent = getSel() ? 'Trocear corte' : 'Trocear';
-  els.autochop.title = getSel() ? 'Trocea solo dentro del corte seleccionado (Esc para deseleccionar)' : 'Trocea todo el audio';
   draw();
 }
 
@@ -249,7 +252,7 @@ function renderList() {
   if (!list.length) {
     const li = document.createElement('li');
     li.className = 'muted';
-    li.textContent = 'Aún no hay cortes. Arrastra sobre la onda o usa «Trocear».';
+    li.textContent = 'Aún no hay trozos. Pulsa «⛏ Dig» o arrastra sobre la onda.';
     els.regions.append(li);
     return;
   }
@@ -268,12 +271,17 @@ function renderList() {
     const dur = document.createElement('span');
     dur.className = 'dur';
     dur.textContent = fmtTime((r.end - r.start) / r.speed);
+    const star = document.createElement('button');
+    star.className = 'star' + (r.keep ? ' on' : '');
+    star.title = r.keep ? 'Quitar de los que te quedas' : 'Quedártelo: el siguiente Dig no lo cambia';
+    star.textContent = r.keep ? '★' : '☆';
+    star.addEventListener('click', (e) => { e.stopPropagation(); toggleKeep(r); });
     const play = document.createElement('button');
     play.className = 'play';
     play.title = 'Escuchar';
     play.textContent = '▶';
     play.addEventListener('click', (e) => { e.stopPropagation(); select(r.id); playRegion(r); });
-    li.append(bank, nm, dur, play);
+    li.append(star, bank, nm, dur, play);
     li.addEventListener('click', () => { select(r.id); reveal(r); });
     els.regions.append(li);
   });
@@ -444,7 +452,7 @@ function bindWave() {
   };
   c.addEventListener('dblclick', (e) => {
     if (!state.buffer || hitTest(canvasX(e))) return;
-    const L = fixedLen() || +els.fixLen.value || 2;
+    const L = digLen();
     const t = clamp(xToT(canvasX(e)), 0, Math.max(0, state.buffer.duration - L));
     const r = addRegion(t, t + L);
     if (r) { state.sel = r.id; refresh(); }
@@ -614,38 +622,29 @@ function markNow() {
 }
 
 // ---------- auto chop ----------
-const chopMode = () => document.querySelector('input[name=mode]:checked').value;
+const digMode = () => document.querySelector('input[name=dig]:checked').value;
+let onsetCache = null;
 
-function autoChop() {
-  const sel = getSel();
-  const from = sel ? sel.start : 0;
-  const to = sel ? sel.end : state.buffer.duration;
-  const mode = chopMode(), L = fixedLen(), n = clamp(Math.round(+els.parts.value || 8), 1, 64);
-  const onsets = () => {
-    const sr = state.buffer.sampleRate;
-    const data = state.mono.subarray(Math.floor(from * sr), Math.ceil(to * sr));
-    return detectOnsets(data, sr, +els.sens.value).map((t) => t + from);
-  };
-  let ranges;
-  if (mode === 'equal') {
-    ranges = equalRanges(from, to, n);
-    if (L) ranges = ranges.map(([a]) => [a, a + L]);
-  } else if (mode === 'random') {
-    ranges = randomRanges(onsets(), from, to, n, L);
-  } else if (L) {
-    // one chop per hit, skipping hits that fall inside the previous chop
-    ranges = [];
-    for (const t of onsets()) if (!ranges.length || t >= ranges.at(-1)[1]) ranges.push([t, t + L]);
-  } else {
-    ranges = onsetsToRanges(onsets(), to, 4);
+function dig() {
+  if (!state.buffer) return;
+  const n = clamp(Math.round(+els.digN.value || 8), 1, 64), L = digLen(), dur = state.buffer.duration;
+  const kept = state.regions.filter((r) => r.keep);
+  const want = n - kept.length;
+  if (want <= 0) { toast(`Ya tienes ${kept.length} con ★. Quita alguna o sube el número.`, 2500); return; }
+  if (onsetCache?.buffer !== state.buffer) {
+    onsetCache = { buffer: state.buffer, onsets: detectOnsets(state.mono, state.buffer.sampleRate, 5) };
   }
-  ranges = ranges.map(([a, b]) => [a, Math.min(b, to)]).filter(([a, b]) => b - a > 0.02);
-  state.regions = sel ? state.regions.filter((r) => r.id !== sel.id) : [];
-  const base = sel ? { mono: sel.mono, speed: sel.speed, fadeIn: sel.fadeIn, fadeOut: sel.fadeOut, normalize: sel.normalize } : {};
+  const ranges = digRanges({
+    onsets: onsetCache.onsets, dur, n: want, len: L, mode: digMode(),
+    from: state.cursor, taken: kept.map((r) => [r.start, r.end]),
+  });
+  const base = defaults();
+  stop();
+  state.regions = [...kept];
   state.sel = null;
   for (const [a, b] of ranges) addRegion(a, b, base);
   refresh();
-  toast(`${ranges.length} cortes ${sel ? 'dentro del corte seleccionado' : 'en todo el audio'}`, 1800);
+  toast(kept.length ? `${ranges.length} nuevos · ${kept.length} con ★ se quedan` : `${ranges.length} trozos de ${fmtTime(L)}`, 1600);
 }
 
 // ---------- export ----------
@@ -853,18 +852,12 @@ function bindGlobal() {
   els.seqPlay.addEventListener('click', () => playSeq('seq'));
   els.seqRand.addEventListener('click', () => playSeq('rand'));
   $('stop').addEventListener('click', () => { stop(); draw(); });
-  $('autochop').addEventListener('click', autoChop);
+  $('dig').addEventListener('click', dig);
+  $('heroRec').addEventListener('click', (e) => { e.stopPropagation(); els.recmenu.open = true; });
   $('clear').addEventListener('click', () => {
     if (state.regions.length && confirm('¿Borrar todos los cortes?')) { state.regions = []; state.sel = null; refresh(); }
   });
-  document.querySelectorAll('input[name=mode]').forEach((el) => el.addEventListener('change', () => {
-    const m = chopMode();
-    els.sensWrap.hidden = m === 'equal';
-    els.partsWrap.hidden = m === 'onsets';
-    els.partsLabel.textContent = m === 'random' ? 'Cuántos' : 'Partes';
-  }));
-  els.fixOn.addEventListener('change', () => { els.fixWrap.hidden = !els.fixOn.checked; applyFixedLen(); });
-  els.fixLen.addEventListener('input', applyFixedLen);
+  els.digLen.addEventListener('input', applyDigLen);
   els.exportBtn.addEventListener('click', exportZip);
 
   document.addEventListener('keydown', (e) => {
@@ -880,6 +873,10 @@ function bindGlobal() {
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.sel) {
       e.preventDefault();
       deleteRegion(state.sel);
+    } else if (e.key === 'k' || e.key === 'K') {
+      const r = getSel(); if (r) toggleKeep(r);
+    } else if (e.key === 'd' || e.key === 'D') {
+      dig();
     } else if (e.key === 'Escape') {
       state.sel = null; refresh();
     } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
