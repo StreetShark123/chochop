@@ -1,20 +1,20 @@
 // Pure helpers: no DOM, no Web Audio. Testable in Node.
 
 export const TARGET_RATE = 44100;
-// Wave Bard sample memory: 7.5 MiB of 16-bit samples ≈ 89 s mono at 44.1 kHz.
+// Reference budget (a Bastl Wave Bard's sample memory): 7.5 MiB of 16-bit samples ≈ 89 s mono at 44.1 kHz.
 export const BUDGET_SAMPLES = Math.floor((7.5 * 1024 * 1024) / 2);
 export const BANK_SIZE = 8;
 
-/** Samples a region will use in the Wave Bard's memory once exported. */
+/** Samples a region takes once exported (counted against BUDGET_SAMPLES). */
 export function regionCost(r) {
   const dur = Math.max(0, r.end - r.start) / r.speed;
   return Math.ceil(dur * TARGET_RATE) * (r.mono ? 1 : 2);
 }
 
-/** Make a name safe for the Bard web app: [A-Z0-9_-], max 8 chars. */
+/** Make a sampler-safe name: [A-Z0-9_-], max 8 chars. */
 export function cleanName(s) {
   const n = String(s || '')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^A-Za-z0-9_-]/g, '').toUpperCase().slice(0, 8);
   return n || 'SMP';
 }
@@ -86,7 +86,6 @@ export function detectOnsets(data, rate, sensitivity = 5, minGapSec = 0.08) {
   return out.length ? out : [0];
 }
 
-/** Turn onset times into [start, end] pairs, ending at the next onset or maxLen. */
 /**
  * Pick n windows of `len` seconds inside [0, dur] ("dig").
  *  - random: random detected hits (falls back to anywhere), avoiding overlap
@@ -155,7 +154,7 @@ export function finish(channels, { reverse, normalize, fadeInMs, fadeOutMs }) {
   return channels;
 }
 
-/** 16-bit PCM WAV. */
+/** 16-bit PCM WAV (little-endian, interleaved). */
 export function encodeWav(channels, rate = TARGET_RATE) {
   const nCh = channels.length, len = channels[0].length;
   const bytes = 44 + len * nCh * 2;
@@ -166,12 +165,13 @@ export function encodeWav(channels, rate = TARGET_RATE) {
   str(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nCh, true);
   v.setUint32(24, rate, true); v.setUint32(28, rate * nCh * 2, true); v.setUint16(32, nCh * 2, true); v.setUint16(34, 16, true);
   str(36, 'data'); v.setUint32(40, len * nCh * 2, true);
-  let o = 44;
-  for (let i = 0; i < len; i++) {
-    for (let c = 0; c < nCh; c++) {
-      const s = Math.max(-1, Math.min(1, channels[c][i]));
-      v.setInt16(o, s < 0 ? Math.round(s * 0x8000) : Math.round(s * 0x7fff), true);
-      o += 2;
+  // Browsers run on little-endian hardware, so a typed view writes WAV byte order directly.
+  const pcm = new Int16Array(buf, 44, len * nCh);
+  for (let c = 0; c < nCh; c++) {
+    const d = channels[c];
+    for (let i = 0, o = c; i < len; i++, o += nCh) {
+      const s = d[i] > 1 ? 1 : d[i] < -1 ? -1 : d[i];
+      pcm[o] = s < 0 ? Math.round(s * 0x8000) : Math.round(s * 0x7fff);
     }
   }
   return new Uint8Array(buf);
@@ -187,7 +187,7 @@ const CRC_TABLE = (() => {
   }
   return t;
 })();
-export function crc32(data) {
+function crc32(data) {
   let c = 0xffffffff;
   for (let i = 0; i < data.length; i++) c = CRC_TABLE[(c ^ data[i]) & 0xff] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;

@@ -42,6 +42,7 @@ const state = {
   view: { start: 0, end: 1 },
   cursor: 0,
   nextId: 1,
+  bufId: 0,          // bumps on every new buffer; keys the cached waveform layers
 };
 
 let actx = null;
@@ -65,6 +66,7 @@ async function loadFile(file) {
 function setBuffer(buf, name) {
   stop();
   state.buffer = buf;
+  state.bufId++;
   state.mono = mixdown(buf);
   state.peaks = buildPeaks(state.mono);
   setPack(name.replace(/\.[^.]+$/, ''));
@@ -165,7 +167,7 @@ function deleteRegion(id) {
 // Dig length: changing it resizes every chop that isn't starred.
 const digLen = () => clamp(+els.digLen.value || 2, 0.05, 30);
 function applyDigLen() {
-  if (!state.buffer) return;
+  if (!state.buffer || !(+els.digLen.value > 0)) return;
   const L = digLen(), dur = state.buffer.duration;
   for (const r of state.regions) {
     if (r.keep) continue;
@@ -181,7 +183,26 @@ function toggleKeep(r) {
 }
 
 // ---------- drawing ----------
-const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+// Theme colours are read from CSS once; the theme is fixed (dark only).
+let C = null;
+const colors = () => (C ||= Object.fromEntries(
+  ['region-edge', 'sel', 'region', 'accent', 'line', 'wave', 'muted']
+    .map((v) => [v, getComputedStyle(document.documentElement).getPropertyValue(`--${v}`).trim()]),
+));
+
+// Waveform bitmaps are cached and only repainted when the audio, size or view changes,
+// so the playhead animation just composites them.
+const layers = { wave: { key: '' }, over: { key: '' } };
+function layer(l, w, h, key, paint) {
+  if (l.key !== key) {
+    l.c ||= document.createElement('canvas');
+    l.c.width = w; l.c.height = h;
+    paint(l.c.getContext('2d'));
+    l.key = key;
+  }
+  return l.c;
+}
+
 let dpr = 1;
 
 function resize() {
@@ -225,53 +246,55 @@ function drawWave(ctx, w, h, from, to, color) {
 
 function draw() {
   if (!state.buffer) return;
-  const c = els.wave, ctx = c.getContext('2d'), w = c.width, h = c.height;
+  const c = els.wave, ctx = c.getContext('2d'), w = c.width, h = c.height, k = colors();
+  const { start, end } = state.view;
   ctx.clearRect(0, 0, w, h);
   // regions
-  const edge = css('--region-edge');
+  const edge = k['region-edge'];
   ctx.font = `${11 * dpr}px 'JetBrains Mono', ui-monospace, monospace`;
   sorted().forEach((r, i) => {
     const x1 = tToX(r.start), x2 = tToX(r.end);
     if (x2 < 0 || x1 > w) return;
     const isSel = r.id === state.sel;
-    ctx.fillStyle = isSel ? css('--sel') : css('--region');
+    ctx.fillStyle = isSel ? k.sel : k.region;
     ctx.fillRect(x1, 0, x2 - x1, h);
-    ctx.fillStyle = isSel ? css('--accent') : edge;
+    ctx.fillStyle = isSel ? k.accent : edge;
     ctx.fillRect(x1, 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
     ctx.fillRect(x2 - dpr * (isSel ? 2 : 1), 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
     if (x2 - x1 > 28 * dpr) ctx.fillText(`${i + 1} ${r.name}${r.keep ? ' ★' : ''}`, x1 + 4 * dpr, 13 * dpr);
   });
   // centre line + wave
-  ctx.fillStyle = css('--line');
+  ctx.fillStyle = k.line;
   ctx.fillRect(0, h / 2, w, 1);
-  drawWave(ctx, w, h, state.view.start, state.view.end, css('--wave'));
+  ctx.drawImage(layer(layers.wave, w, h, `${state.bufId}:${w}x${h}:${start}:${end}`,
+    (g) => drawWave(g, w, h, start, end, k.wave)), 0, 0);
   // cursor
-  ctx.fillStyle = css('--muted');
+  ctx.fillStyle = k.muted;
   const cx = tToX(state.cursor);
   if (cx >= 0 && cx <= w) ctx.fillRect(cx, 0, dpr, h);
   // drag preview
   if (drag && drag.mode === 'create') {
     const a = tToX(Math.min(drag.t0, drag.t1)), b = tToX(Math.max(drag.t0, drag.t1));
-    ctx.fillStyle = css('--sel');
+    ctx.fillStyle = k.sel;
     ctx.fillRect(a, 0, b - a, h);
   }
   // playhead
   const ph = playheadTime();
   if (ph != null) {
-    ctx.fillStyle = css('--accent');
+    ctx.fillStyle = k.accent;
     ctx.fillRect(tToX(ph), 0, 2 * dpr, h);
   }
   drawOverview();
 }
 
 function drawOverview() {
-  const c = els.overview, ctx = c.getContext('2d'), w = c.width, h = c.height;
-  ctx.clearRect(0, 0, w, h);
+  const c = els.overview, ctx = c.getContext('2d'), w = c.width, h = c.height, k = colors();
   const dur = state.buffer.duration;
-  drawWave(ctx, w, h, 0, dur, css('--muted'));
-  ctx.fillStyle = css('--region');
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(layer(layers.over, w, h, `${state.bufId}:${w}x${h}`, (g) => drawWave(g, w, h, 0, dur, k.muted)), 0, 0);
+  ctx.fillStyle = k.region;
   for (const r of state.regions) ctx.fillRect((r.start / dur) * w, 0, ((r.end - r.start) / dur) * w, h);
-  ctx.strokeStyle = css('--accent');
+  ctx.strokeStyle = k.accent;
   ctx.lineWidth = 2 * dpr;
   const a = (state.view.start / dur) * w, b = (state.view.end / dur) * w;
   ctx.strokeRect(a + dpr, dpr, Math.max(2, b - a - 2 * dpr), h - 2 * dpr);
@@ -279,6 +302,7 @@ function drawOverview() {
 
 // ---------- list, meter, inspector ----------
 function refresh() {
+  for (const id of rendered.keys()) if (!state.regions.some((r) => r.id === id)) rendered.delete(id);
   renderList();
   renderMeter();
   renderInspector();
@@ -290,6 +314,7 @@ function renderList() {
   const list = sorted();
   const nb = Math.ceil(list.length / BANK_SIZE);
   els.count.textContent = list.length ? t('count', { n: list.length, b: nb, banks: t('bank', { n: nb }) }) : '';
+  const refocus = els.regions.contains(document.activeElement); // keep keyboard focus across re-renders
   els.regions.innerHTML = '';
   if (!list.length) {
     const li = document.createElement('li');
@@ -338,11 +363,10 @@ function renderList() {
     li.append(star, bank, nm, dur, play);
     li.tabIndex = 0;
     li.addEventListener('click', () => { select(r.id); reveal(r); });
-    li.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.target === li) { select(r.id); reveal(r); els.regions.querySelector(`[data-id="${r.id}"]`)?.focus(); }
-    });
+    li.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === li) { select(r.id); reveal(r); } });
     els.regions.append(li);
   });
+  if (refocus) els.regions.querySelector('li.sel')?.focus();
 }
 
 function renderMeter() {
@@ -468,37 +492,37 @@ function bindWave() {
   c.addEventListener('pointerdown', (e) => {
     if (!state.buffer) return;
     c.setPointerCapture(e.pointerId);
-    const x = canvasX(e), t = xToT(x), hit = e.altKey ? null : hitTest(x);
+    const x = canvasX(e), time = xToT(x), hit = e.altKey ? null : hitTest(x);
     if (hit && hit.part !== 'body') {
       drag = { mode: 'edge', r: hit.r, part: hit.part };
       state.sel = hit.r.id;
     } else if (hit) {
-      drag = { mode: 'move', r: hit.r, t0: t, s0: hit.r.start, e0: hit.r.end, x0: x, moved: false };
+      drag = { mode: 'move', r: hit.r, t0: time, s0: hit.r.start, e0: hit.r.end, x0: x, moved: false };
       state.sel = hit.r.id;
     } else {
-      drag = { mode: 'create', t0: t, t1: t, x0: x };
+      drag = { mode: 'create', t0: time, t1: time, x0: x };
     }
     refresh();
   });
   c.addEventListener('pointermove', (e) => {
     if (!state.buffer) return;
-    const x = canvasX(e), t = clamp(xToT(x), 0, state.buffer.duration);
+    const x = canvasX(e), time = clamp(xToT(x), 0, state.buffer.duration);
     if (!drag) {
       const hit = hitTest(x);
       c.style.cursor = hit ? (hit.part === 'body' ? 'grab' : 'ew-resize') : 'crosshair';
       return;
     }
-    if (drag.mode === 'create') { drag.t1 = t; draw(); }
+    if (drag.mode === 'create') { drag.t1 = time; draw(); }
     else if (drag.mode === 'edge') {
       const r = drag.r;
-      if (drag.part === 'start') r.start = Math.min(t, r.end - 0.01);
-      else r.end = Math.max(t, r.start + 0.01);
+      if (drag.part === 'start') r.start = Math.min(time, r.end - 0.01);
+      else r.end = Math.max(time, r.start + 0.01);
       renderInspector(); renderMeter(); draw();
     } else if (drag.mode === 'move') {
       if (Math.abs(x - drag.x0) > 3 * dpr) drag.moved = true;
       if (!drag.moved) return;
       const len = drag.e0 - drag.s0;
-      const s = clamp(drag.s0 + (t - drag.t0), 0, state.buffer.duration - len);
+      const s = clamp(drag.s0 + (time - drag.t0), 0, state.buffer.duration - len);
       drag.r.start = s; drag.r.end = s + len;
       renderInspector(); draw();
     }
@@ -524,8 +548,8 @@ function bindWave() {
   c.addEventListener('dblclick', (e) => {
     if (!state.buffer || hitTest(canvasX(e))) return;
     const L = digLen();
-    const t = clamp(xToT(canvasX(e)), 0, Math.max(0, state.buffer.duration - L));
-    const r = addRegion(t, t + L);
+    const s = clamp(xToT(canvasX(e)), 0, Math.max(0, state.buffer.duration - L));
+    const r = addRegion(s, s + L);
     if (r) { state.sel = r.id; refresh(); }
   });
   c.addEventListener('pointerup', end);
@@ -545,9 +569,9 @@ function bindWave() {
   const ov = els.overview;
   const ovSet = (e) => {
     const rect = ov.getBoundingClientRect();
-    const t = ((e.clientX - rect.left) / rect.width) * state.buffer.duration;
+    const mid = ((e.clientX - rect.left) / rect.width) * state.buffer.duration;
     const span = state.view.end - state.view.start;
-    setView(t - span / 2, t + span / 2);
+    setView(mid - span / 2, mid + span / 2);
   };
   ov.addEventListener('pointerdown', (e) => { if (!state.buffer) return; ov.setPointerCapture(e.pointerId); ovSet(e); ov.onpointermove = ovSet; });
   ov.addEventListener('pointerup', () => { ov.onpointermove = null; });
@@ -574,10 +598,11 @@ async function renderRegion(r) {
   return finish(chans, { reverse: r.reverse, normalize: r.normalize, fadeInMs: r.fadeIn, fadeOutMs: r.fadeOut });
 }
 
-// Processed chops are cached per region until any of their settings change.
+// Processed chops are cached per region until any of their settings change;
+// refresh() drops entries for regions that no longer exist.
 const rendered = new Map();
 async function renderedBuffer(r) {
-  const key = [state.buffer.length, r.start, r.end, r.mono, r.speed, r.fadeIn, r.fadeOut, r.normalize, r.reverse].join();
+  const key = [r.start, r.end, r.mono, r.speed, r.fadeIn, r.fadeOut, r.normalize, r.reverse].join();
   const hit = rendered.get(r.id);
   if (hit && hit.key === key) return hit.buf;
   const chans = await renderRegion(r);
@@ -587,7 +612,11 @@ async function renderedBuffer(r) {
   return buf;
 }
 
+// Every stop() starts a new generation, so playback that was still preparing
+// (rendering or resuming the context) when the user stopped never starts.
+let playGen = 0;
 function stop() {
+  playGen++;
   if (playing) { try { playing.src.stop(); } catch {} playing = null; }
   if (seq) {
     clearTimeout(seq.timer);
@@ -599,9 +628,10 @@ function stop() {
 
 async function playRegion(r) {
   stop();
-  const ctx = audio();
+  const gen = playGen, ctx = audio();
   await ctx.resume();
   const b = await renderedBuffer(r);
+  if (gen !== playGen) return;
   const src = ctx.createBufferSource();
   src.buffer = b;
   src.connect(ctx.destination);
@@ -613,8 +643,9 @@ async function playRegion(r) {
 
 async function playOriginal() {
   stop();
-  const ctx = audio();
+  const gen = playGen, ctx = audio();
   await ctx.resume();
+  if (gen !== playGen) return;
   const src = ctx.createBufferSource();
   src.buffer = state.buffer;
   src.connect(ctx.destination);
@@ -639,7 +670,7 @@ function tick() {
 }
 
 // ---------- sequence (like the Bard: chops back to back, in order or random) ----------
-let seq = null; // {mode, list, i, next, timer, srcs, now}
+let seq = null; // {mode, bufs, i, next, timer, srcs, now}
 
 async function playSeq(mode) {
   const again = seq?.mode === mode;
@@ -647,12 +678,13 @@ async function playSeq(mode) {
   if (again) { draw(); return; }
   const list = sorted();
   if (!list.length) { toast(t('needSlices'), 1800); return; }
-  const ctx = audio();
+  const gen = playGen, ctx = audio();
   await ctx.resume();
   if (list.length > 8) toast(t('preparing'));
   const bufs = await Promise.all(list.map(renderedBuffer));
-  hideToast();
-  const s = { mode, list, bufs, i: -1, next: ctx.currentTime + 0.05, srcs: new Set(), now: null };
+  if (list.length > 8) hideToast();
+  if (gen !== playGen) return;
+  const s = { mode, bufs, i: -1, next: ctx.currentTime + 0.05, srcs: new Set(), now: null };
   seq = s;
   markNow();
   const pick = () => {
@@ -692,7 +724,7 @@ function markNow() {
   for (const li of els.regions.children) li.classList.toggle('now', !!seq && +li.dataset.id === seq.now);
 }
 
-// ---------- auto chop ----------
+// ---------- dig ----------
 const digMode = () => document.querySelector('input[name=dig]:checked').value;
 let onsetCache = null;
 
@@ -728,7 +760,8 @@ async function exportZip() {
     const files = [];
     for (let i = 0; i < list.length; i++) {
       toast(t('processing', { i: i + 1, n: list.length }));
-      const chans = await renderRegion(list[i]);
+      const b = await renderedBuffer(list[i]);
+      const chans = Array.from({ length: b.numberOfChannels }, (_, c) => b.getChannelData(c));
       const bank = Math.floor(i / BANK_SIZE) + 1;
       files.push({ name: `${packSlug()}/${t('folderBank')}${bank}/${names[i]}.wav`, data: encodeWav(chans) });
     }
@@ -769,7 +802,8 @@ async function startRec(kind) {
     stream = kind === 'mic'
       ? await navigator.mediaDevices.getUserMedia({ audio: { ...RAW, channelCount: { ideal: 2 } } })
       : await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: kind === 'system' ? 'monitor' : 'browser' },
+        // Video is mandatory for display capture but unused, so keep it tiny.
+        video: { displaySurface: kind === 'system' ? 'monitor' : 'browser', frameRate: { max: 5 }, width: { max: 640 } },
         audio: { ...RAW, suppressLocalAudioPlayback: false },
         systemAudio: 'include', monitorTypeSurfaces: 'include',
         selfBrowserSurface: 'exclude', surfaceSwitching: 'include',
@@ -849,9 +883,10 @@ async function stopRec(keep) {
     for (const k of r.chunks) { out.set(k[c] || k[0], o); o += k[0].length; }
     return out;
   });
+  const loud = (i) => { for (const d of chans) if (Math.abs(d[i]) > REC_SILENCE) return true; return false; };
   let first = -1, last = -1;
-  for (let i = 0; i < total; i++) if (chans.some((d) => Math.abs(d[i]) > REC_SILENCE)) { first = i; break; }
-  for (let i = total - 1; i > first; i--) if (chans.some((d) => Math.abs(d[i]) > REC_SILENCE)) { last = i; break; }
+  for (let i = 0; i < total; i++) if (loud(i)) { first = i; break; }
+  for (let i = total - 1; i > first; i--) if (loud(i)) { last = i; break; }
   if (first < 0) {
     toast(t('recSilent'), 5000);
     return;
@@ -925,7 +960,7 @@ function bindGlobal() {
   document.addEventListener('keydown', (e) => {
     if (document.querySelector('dialog[open]')) return;
     if (e.key === 'Escape' && els.recmenu.open) { els.recmenu.open = false; return; }
-    if (!state.buffer || rec) return;
+    if (!state.buffer || rec || e.metaKey || e.ctrlKey || e.altKey) return;
     const tag = document.activeElement?.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (e.code === 'Space') {
@@ -952,7 +987,6 @@ function bindGlobal() {
     }
   });
   window.addEventListener('resize', resize);
-  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', draw);
 }
 
 function bindLang() {
