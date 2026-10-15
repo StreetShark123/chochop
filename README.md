@@ -14,7 +14,8 @@ Es una página web estática: se abre en el navegador y todo el audio se procesa
 - Ajustes por trozo: nombre de 8 caracteres, mono/estéreo, velocidad (×1, ×0,75, ×0,5, ×0,25, estilo cinta), fades, normalizar y al revés.
 - **Escucha** cada trozo, o todos seguidos o en orden aleatorio y en bucle, como los tocaría el Bard.
 - Un medidor indica cuánta memoria del Wave Bard ocupas (≈ 89 s en mono / 44 s en estéreo a 44,1 kHz).
-- Exporta un ZIP con WAV de 16 bits a 44,1 kHz, en carpetas de 8 (`banco1`, `banco2`…) con nombres válidos de 8 caracteres.
+- **Descarga** un ZIP con el nombre del pack que elijas: WAV de 16 bits a 44,1 kHz, en carpetas de 8 (`banco1`, `banco2`…) con nombres válidos de 8 caracteres. El nombre del pack también da nombre a los sonidos, salvo los que renombres a mano.
+- En castellano, galego e English.
 
 ## Atajos
 
@@ -25,7 +26,7 @@ Es una página web estática: se abre en el navegador y todo el audio se procesa
 | Doble clic | Añadir un trozo del largo elegido |
 | Arrastrar | Crear trozo (Alt: encima de otro) |
 | Espacio | Escuchar / parar |
-| Supr / Retroceso | Borrar el trozo seleccionado |
+| Supr / Retroceso | Quitar el trozo seleccionado |
 | ← → | Trozo anterior / siguiente |
 | Esc | Deseleccionar |
 | Rueda | Zoom · Mayús + rueda: desplazar |
@@ -49,6 +50,7 @@ Al usar módulos ES no funciona abriendo `index.html` con doble clic: necesita u
 
 ## Estructura
 
-- `index.html`, `style.css`: interfaz.
+- `index.html`, `style.css`: interfaz. `i18n.js`: textos en es / gl / en.
+- `favicon.svg`, `icon-*.png`, `og.png`, `site.webmanifest`: iconos e imagen para compartir.
 - `app.js`: editor, dig, grabación, reproducción, render con `OfflineAudioContext` y exportación.
 - `dsp.js`: funciones puras (detección de golpes, dig, WAV, ZIP, nombres, presupuesto de memoria), sin dependencias.

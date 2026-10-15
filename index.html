@@ -3,9 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>chochop</title>
-<meta name="description" content="Trocea audio en samples listos para el Bastl Kastle 2 Wave Bard">
+<title>chochop · dig &amp; chop para el Wave Bard</title>
+<meta name="description" content="Saca samples de cualquier audio para el Bastl Kastle 2 Wave Bard">
 <meta name="theme-color" content="#0b0c0b">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<link rel="canonical" href="https://chochop.vercel.app/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="chochop">
+<meta property="og:title" content="chochop · dig &amp; chop">
+<meta property="og:description" content="Saca samples de cualquier audio para el Bastl Kastle 2 Wave Bard. Todo en tu navegador.">
+<meta property="og:url" content="https://chochop.vercel.app/">
+<meta property="og:image" content="https://chochop.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="chochop: dig &amp; chop para el Wave Bard">
+<meta property="og:locale" content="es_ES">
+<meta property="og:locale:alternate" content="gl_ES">
+<meta property="og:locale:alternate" content="en_GB">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -13,18 +32,22 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo">chochop</span><span class="tag">dig &amp; chop para el Wave Bard</span></div>
+  <div class="brand"><span class="logo">chochop</span><span class="tag" data-i18n="tag">dig &amp; chop para el Wave Bard</span></div>
   <div class="actions">
-    <label class="btn" for="file">Abrir audio</label>
+    <div class="langs" role="group" data-i18n-aria="langs" aria-label="Idioma">
+      <button type="button" data-lang="es" lang="es" title="Castellano">ES</button>
+      <button type="button" data-lang="gl" lang="gl" title="Galego">GL</button>
+      <button type="button" data-lang="en" lang="en" title="English">EN</button>
+    </div>
+    <label class="btn" for="file" data-i18n="open">Abrir audio</label>
     <input id="file" type="file" accept="audio/*,.wav,.mp3,.aif,.aiff,.ogg,.flac,.m4a" hidden>
     <details class="recmenu" id="recmenu">
-      <summary class="btn rec">● Grabar</summary>
+      <summary class="btn rec" data-i18n="rec">● Grabar</summary>
       <div class="menu">
-        <button type="button" id="recTab"><b>Una pestaña</b><span>Lo que suene en otra pestaña: YouTube, SoundCloud, Bandcamp… Solo Chrome/Edge de escritorio.</span></button>
-        <button type="button" id="recMic"><b>El micro</b><span>Objetos, voces, la calle, lo que tengas cerca.</span></button>
+        <button type="button" id="recTab"><b data-i18n="recTabT">Una pestaña</b><span data-i18n="recTabD"></span></button>
+        <button type="button" id="recMic"><b data-i18n="recMicT">El micro</b><span data-i18n="recMicD"></span></button>
       </div>
     </details>
-    <button id="export" class="btn primary" disabled hidden>Exportar ZIP</button>
   </div>
 </header>
 
@@ -33,15 +56,15 @@
     <div class="hero">
       <h1>dig <span>&amp;</span> chop</h1>
       <ol class="steps">
-        <li><b>Carga</b> un audio o graba lo que suene</li>
-        <li><b>Dig</b>: saca 8 trozos de 2 s y quédate los buenos</li>
-        <li><b>Chop</b>: muévelos, ajústalos y exporta al Bard</li>
+        <li data-i18n-html="step1"></li>
+        <li data-i18n-html="step2"></li>
+        <li data-i18n-html="step3"></li>
       </ol>
       <div class="herobtns">
-        <label class="btn primary big" for="file">Abrir audio</label>
-        <button type="button" id="heroRec" class="btn big rec">● Grabar</button>
+        <label class="btn primary big" for="file" data-i18n="open">Abrir audio</label>
+        <button type="button" id="heroRec" class="btn big rec" data-i18n="rec">● Grabar</button>
       </div>
-      <p class="muted small">o arrastra un archivo a cualquier parte · todo se queda en tu navegador</p>
+      <p class="muted small" data-i18n="heroNote"></p>
     </div>
   </section>
 
@@ -49,7 +72,7 @@
     <div class="filebar">
       <span id="fname" class="fname"></span>
       <span id="fmeta" class="muted"></span>
-      <button id="zoomall" class="link">Ver todo</button>
+      <button id="zoomall" class="link" data-i18n="zoomAll">Ver todo</button>
     </div>
 
     <div class="wavewrap">
@@ -60,63 +83,75 @@
     <div class="dig">
       <span class="step">Dig</span>
       <span class="sentence">
-        Saca <input id="digN" type="number" min="1" max="64" value="8" aria-label="Cuántos trozos"> trozos de
-        <input id="digLen" type="number" min="0.05" max="30" step="0.1" value="2" aria-label="Segundos por trozo"> s
+        <span data-i18n="digPull">Saca</span>
+        <input id="digN" type="number" min="1" max="64" value="8" data-i18n-aria="digN">
+        <span data-i18n="digOf">trozos de</span>
+        <input id="digLen" type="number" min="0.05" max="30" step="0.1" value="2" data-i18n-aria="digLen"> s
       </span>
-      <div class="seg" role="radiogroup" aria-label="Cómo cavar">
-        <label title="Trozos al azar, empezando en golpes"><input type="radio" name="dig" value="random" checked><span>al azar</span></label>
-        <label title="Repartidos por todo el audio"><input type="radio" name="dig" value="spread"><span>repartidos</span></label>
-        <label title="Uno detrás de otro desde el cursor"><input type="radio" name="dig" value="row"><span>seguidos</span></label>
+      <div class="seg" role="radiogroup" data-i18n-aria="digHow">
+        <label data-i18n-title="mRandomT"><input type="radio" name="dig" value="random" checked><span data-i18n="mRandom">al azar</span></label>
+        <label data-i18n-title="mSpreadT"><input type="radio" name="dig" value="spread"><span data-i18n="mSpread">repartidos</span></label>
+        <label data-i18n-title="mRowT"><input type="radio" name="dig" value="row"><span data-i18n="mRow">seguidos</span></label>
       </div>
       <button id="dig" class="btn primary">⛏ Dig</button>
-      <span id="digHint" class="dighint muted">Marca con ★ los que te gusten: el siguiente Dig solo cambia el resto.</span>
+      <span id="digHint" class="dighint muted" data-i18n="digHint"></span>
     </div>
 
     <div class="bar">
-      <span class="barlabel">Escuchar</span>
-      <button id="playall" class="btn sm" title="Desde el cursor (clic en la onda para moverlo)">▶ Original</button>
-      <button id="seqPlay" class="btn sm" title="Los trozos procesados, uno tras otro, en bucle">▶ Seguido</button>
-      <button id="seqRand" class="btn sm" title="Los trozos procesados en orden aleatorio, en bucle">⤨ Aleatorio</button>
-      <button id="stop" class="btn sm ghost" title="Espacio">■</button>
-      <div class="meter" title="Memoria del Wave Bard">
+      <span class="barlabel" data-i18n="listen">Escuchar</span>
+      <button id="playall" class="btn sm" data-i18n-title="playOrigT">▶ Original</button>
+      <button id="seqPlay" class="btn sm" data-i18n="seqPlay" data-i18n-title="seqPlayT">▶ Seguido</button>
+      <button id="seqRand" class="btn sm" data-i18n="seqRand" data-i18n-title="seqRandT">⤨ Aleatorio</button>
+      <button id="stop" class="btn sm ghost" data-i18n-title="stopT">■</button>
+      <div class="meter" data-i18n-title="memT">
         <span id="memtext"></span>
         <div class="meterbar"><div id="memfill"></div></div>
       </div>
     </div>
 
     <details class="help">
-      <summary>Cómo se usa</summary>
-      <p>Arrastra el centro de un trozo para moverlo y sus bordes para ajustarlo. Doble clic en la onda añade un trozo del largo elegido; arrastrar sobre una zona vacía crea uno a mano (<kbd>Alt</kbd> para crearlo encima de otro). Cambiar los segundos ajusta al momento los trozos sin ★.</p>
-      <p><kbd>D</kbd> dig · <kbd>K</kbd> ★ · <kbd>Espacio</kbd> escucha o para · <kbd>Supr</kbd> borra · <kbd>←</kbd><kbd>→</kbd> cambian de corte · <kbd>Esc</kbd> deselecciona · rueda = zoom, <kbd>Mayús</kbd>+rueda = desplazar.</p>
+      <summary data-i18n="help">Cómo se usa</summary>
+      <p data-i18n-html="help1"></p>
+      <p data-i18n-html="help2"></p>
     </details>
 
     <div class="panels">
       <section class="list">
         <div class="listhead">
-          <h2><span class="step">Chop</span> Trozos <span id="count" class="muted"></span></h2>
-          <button id="clear" class="link">Borrar todo</button>
+          <h2><span class="step">Chop</span> <span data-i18n="slices">Trozos</span> <span id="count" class="muted"></span></h2>
+          <button id="clear" class="link" data-i18n="clear">Empezar de cero</button>
         </div>
         <ol id="regions"></ol>
+        <div class="exportbox">
+          <label class="packname">
+            <span data-i18n="packName">Nombre del pack</span>
+            <input id="pack" maxlength="40" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="exportgo">
+            <span id="exportInfo" class="muted small"></span>
+            <button id="export" class="btn primary" disabled data-i18n="download">⬇ Descargar ZIP</button>
+          </div>
+        </div>
       </section>
       <section class="inspector" id="inspector">
-        <h2>Trozo</h2>
-        <div id="noSel" class="muted">Selecciona un trozo para ajustarlo.</div>
+        <h2 data-i18n="slice">Trozo</h2>
+        <div id="noSel" class="muted" data-i18n="noSel"></div>
         <form id="props" hidden>
-          <label>Nombre <input id="pName" maxlength="8" autocomplete="off"></label>
+          <label><span data-i18n="pName">Nombre</span> <input id="pName" maxlength="8" autocomplete="off" spellcheck="false"></label>
           <div class="row">
-            <label>Inicio (s) <input id="pStart" type="number" step="0.001" min="0"></label>
-            <label>Fin (s) <input id="pEnd" type="number" step="0.001" min="0"></label>
+            <label><span data-i18n="pStart">Inicio (s)</span> <input id="pStart" type="number" step="0.001" min="0"></label>
+            <label><span data-i18n="pEnd">Fin (s)</span> <input id="pEnd" type="number" step="0.001" min="0"></label>
           </div>
           <div class="row">
-            <label>Canales
-              <select id="pMono"><option value="1">Mono</option><option value="0">Estéreo</option></select>
+            <label><span data-i18n="pCh">Canales</span>
+              <select id="pMono"><option value="1">Mono</option><option value="0" data-i18n="stereo">Estéreo</option></select>
             </label>
-            <label>Velocidad
+            <label><span data-i18n="pSpeed">Velocidad</span>
               <select id="pSpeed">
                 <option value="1">×1</option>
-                <option value="0.75">×0,75</option>
-                <option value="0.5">×0,5 (−1 octava)</option>
-                <option value="0.25">×0,25 (−2 octavas)</option>
+                <option value="0.75" data-i18n="x075">×0,75</option>
+                <option value="0.5" data-i18n="x05">×0,5 (−1 octava)</option>
+                <option value="0.25" data-i18n="x025">×0,25 (−2 octavas)</option>
               </select>
             </label>
           </div>
@@ -125,13 +160,13 @@
             <label>Fade out (ms) <input id="pFadeOut" type="number" min="0" max="5000" step="1"></label>
           </div>
           <div class="row checks">
-            <label class="check"><input id="pNorm" type="checkbox"> Normalizar</label>
-            <label class="check"><input id="pRev" type="checkbox"> Al revés</label>
+            <label class="check"><input id="pNorm" type="checkbox"> <span data-i18n="norm">Normalizar</span></label>
+            <label class="check"><input id="pRev" type="checkbox"> <span data-i18n="rev">Al revés</span></label>
           </div>
           <div class="row">
-            <button type="button" id="pPlay" class="btn sm">▶ Escuchar</button>
-            <button type="button" id="pApplyAll" class="btn sm ghost" title="Copia canales, velocidad, fades, normalizar y al revés a todos los cortes">Copiar a todos</button>
-            <button type="button" id="pDel" class="btn sm danger">Borrar</button>
+            <button type="button" id="pPlay" class="btn sm" data-i18n="pPlay">▶ Escuchar</button>
+            <button type="button" id="pApplyAll" class="btn sm ghost" data-i18n="applyAll" data-i18n-title="applyAllT">Copiar a todos</button>
+            <button type="button" id="pDel" class="btn sm ghost" data-i18n="remove">Quitar</button>
           </div>
           <p class="muted small" id="pInfo"></p>
         </form>
@@ -140,19 +175,15 @@
   </section>
 </main>
 
-<footer class="foot muted">
-  WAV de 16 bits a 44,1 kHz en carpetas de 8 (un banco cada una). Cárgalos en la
-  <a href="https://apps.bastl-instruments.com/wave-bard-sample-loader/" target="_blank" rel="noopener">web app de Bastl</a>.
-  Los samples melódicos, mejor afinados en Do.
-</footer>
+<footer class="foot muted" data-i18n-html="foot"></footer>
 
 <div id="recbar" class="recbar" hidden>
   <span class="recdot" aria-hidden="true"></span>
-  <span id="recLabel">Grabando</span>
+  <span id="recLabel" data-i18n="recording">Grabando</span>
   <span id="recTime" class="rectime">0:00</span>
   <div class="reclevel" aria-hidden="true"><div id="recLevel"></div></div>
-  <button type="button" id="recStop" class="btn sm primary">■ Parar y trocear</button>
-  <button type="button" id="recCancel" class="btn sm ghost">Cancelar</button>
+  <button type="button" id="recStop" class="btn sm primary" data-i18n="recStop">■ Parar y usar</button>
+  <button type="button" id="recCancel" class="btn sm ghost" data-i18n="cancel">Cancelar</button>
   <p id="recHint" class="rechint"></p>
 </div>
 <div id="toast" class="toast" hidden></div>

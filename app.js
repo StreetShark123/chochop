@@ -2,12 +2,13 @@ import {
   TARGET_RATE, BUDGET_SAMPLES, BANK_SIZE, regionCost, cleanName, uniqueNames,
   detectOnsets, digRanges, finish, encodeWav, makeZip, fmtTime,
 } from './dsp.js';
+import { t, applyI18n, setLang, onLangChange } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {
   file: $('file'), drop: $('drop'), editor: $('editor'), fname: $('fname'), fmeta: $('fmeta'),
   wave: $('wave'), overview: $('overview'), regions: $('regions'), count: $('count'),
-  memtext: $('memtext'), memfill: $('memfill'), exportBtn: $('export'), toast: $('toast'),
+  memtext: $('memtext'), memfill: $('memfill'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), toast: $('toast'),
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
   recmenu: $('recmenu'), recbar: $('recbar'), recLabel: $('recLabel'), recTime: $('recTime'),
   recLevel: $('recLevel'), recHint: $('recHint'),
@@ -19,6 +20,7 @@ const state = {
   mono: null,        // Float32Array mixdown for display / analysis
   peaks: null,       // {min, max, bin}
   stem: 'SMP',
+  pack: '',          // pack name: ZIP + folder name, and stem for auto sample names
   regions: [],       // {id, start, end, name, mono, speed, fadeIn, fadeOut, normalize, reverse}
   sel: null,
   view: { start: 0, end: 1 },
@@ -33,14 +35,14 @@ const audio = () => (actx ||= new AudioContext());
 // ---------- loading ----------
 async function loadFile(file) {
   try {
-    toast('Decodificando…');
+    toast(t('decoding'));
     const ab = await file.arrayBuffer();
     const buf = await audio().decodeAudioData(ab);
     setBuffer(buf, file.name);
     hideToast();
   } catch (e) {
     console.error(e);
-    toast('No he podido leer ese audio. Prueba con WAV o MP3.', 3500);
+    toast(t('readFail'), 3500);
   }
 }
 
@@ -49,18 +51,33 @@ function setBuffer(buf, name) {
   state.buffer = buf;
   state.mono = mixdown(buf);
   state.peaks = buildPeaks(state.mono);
-  state.stem = cleanName(name.replace(/\.[^.]+$/, '')).slice(0, 5) || 'SMP';
+  setPack(name.replace(/\.[^.]+$/, ''));
   state.regions = [];
   state.sel = null;
   state.cursor = 0;
   state.view = { start: 0, end: buf.duration };
   els.fname.textContent = name;
-  els.fmeta.textContent = `${fmtTime(buf.duration)} · ${buf.numberOfChannels === 1 ? 'mono' : 'estéreo'} · ${buf.sampleRate} Hz`;
+  renderMeta();
   els.drop.hidden = true;
   els.editor.hidden = false;
-  els.exportBtn.hidden = false;
   resize();
   refresh();
+}
+
+function renderMeta() {
+  const buf = state.buffer;
+  if (!buf) return;
+  els.fmeta.textContent = `${fmtTime(buf.duration)} · ${t(buf.numberOfChannels === 1 ? 'monoL' : 'stereoL')} · ${buf.sampleRate} Hz`;
+}
+
+// The pack name names the ZIP and its folder, and seeds auto sample names
+// (first 5 valid characters). Hand-edited sample names are kept.
+const packSlug = () => (state.pack.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'chochop');
+function setPack(name) {
+  state.pack = String(name).slice(0, 40);
+  state.stem = cleanName(state.pack).slice(0, 5) || 'SMP';
+  if (els.pack.value !== state.pack) els.pack.value = state.pack;
 }
 
 function mixdown(buf) {
@@ -247,12 +264,13 @@ function refresh() {
 
 function renderList() {
   const list = sorted();
-  els.count.textContent = list.length ? `· ${list.length} en ${Math.ceil(list.length / BANK_SIZE)} banco(s)` : '';
+  const nb = Math.ceil(list.length / BANK_SIZE);
+  els.count.textContent = list.length ? t('count', { n: list.length, b: nb, banks: t('bank', { n: nb }) }) : '';
   els.regions.innerHTML = '';
   if (!list.length) {
     const li = document.createElement('li');
     li.className = 'muted';
-    li.textContent = 'Aún no hay trozos. Pulsa «⛏ Dig» o arrastra sobre la onda.';
+    li.textContent = t('emptyList');
     els.regions.append(li);
     return;
   }
@@ -273,12 +291,12 @@ function renderList() {
     dur.textContent = fmtTime((r.end - r.start) / r.speed);
     const star = document.createElement('button');
     star.className = 'star' + (r.keep ? ' on' : '');
-    star.title = r.keep ? 'Quitar de los que te quedas' : 'Quedártelo: el siguiente Dig no lo cambia';
+    star.title = t(r.keep ? 'starOn' : 'starOff');
     star.textContent = r.keep ? '★' : '☆';
     star.addEventListener('click', (e) => { e.stopPropagation(); toggleKeep(r); });
     const play = document.createElement('button');
     play.className = 'play';
-    play.title = 'Escuchar';
+    play.title = t('listen');
     play.textContent = '▶';
     play.addEventListener('click', (e) => { e.stopPropagation(); select(r.id); playRegion(r); });
     li.append(star, bank, nm, dur, play);
@@ -292,7 +310,12 @@ function renderMeter() {
   const pct = used / BUDGET_SAMPLES;
   els.memfill.style.width = Math.min(100, pct * 100) + '%';
   els.memfill.classList.toggle('over', pct > 1);
-  els.memtext.textContent = `Bard ${(used / TARGET_RATE).toFixed(1)} / ${Math.round(BUDGET_SAMPLES / TARGET_RATE)} s${pct > 1 ? ' · no cabe' : ''}`;
+  els.memtext.textContent = `Bard ${(used / TARGET_RATE).toFixed(1)} / ${Math.round(BUDGET_SAMPLES / TARGET_RATE)} s${pct > 1 ? t('memOver') : ''}`;
+  const n = state.regions.length;
+  const nb = Math.ceil(n / BANK_SIZE);
+  els.exportInfo.textContent = n
+    ? t('exportInfo', { n, slices: t('nslice', { n }), b: nb, banks: t('bank', { n: nb }) })
+    : t('exportEmpty');
   els.memtext.classList.toggle('over', pct > 1);
 }
 
@@ -318,7 +341,7 @@ function renderInspector() {
   P.norm.checked = r.normalize;
   P.rev.checked = r.reverse;
   const len = (r.end - r.start) / r.speed;
-  els.pInfo.textContent = `Duración final ${fmtTime(len)} · ocupa ${(regionCost(r) / TARGET_RATE).toFixed(2)} s de memoria`;
+  els.pInfo.textContent = t('pInfo', { d: fmtTime(len), m: (regionCost(r) / TARGET_RATE).toFixed(2) });
 }
 
 function bindInspector() {
@@ -339,7 +362,7 @@ function bindInspector() {
     const s = getSel(); if (!s) return;
     for (const r of state.regions) Object.assign(r, { mono: s.mono, speed: s.speed, fadeIn: s.fadeIn, fadeOut: s.fadeOut, normalize: s.normalize, reverse: s.reverse });
     refresh();
-    toast('Ajustes copiados a todos los cortes', 1600);
+    toast(t('copied'), 1600);
   });
 }
 
@@ -575,10 +598,10 @@ async function playSeq(mode) {
   stop();
   if (again) { draw(); return; }
   const list = sorted();
-  if (!list.length) { toast('Primero haz algunos cortes.', 1800); return; }
+  if (!list.length) { toast(t('needSlices'), 1800); return; }
   const ctx = audio();
   await ctx.resume();
-  if (list.length > 8) toast('Preparando cortes…');
+  if (list.length > 8) toast(t('preparing'));
   const bufs = await Promise.all(list.map(renderedBuffer));
   hideToast();
   const s = { mode, list, bufs, i: -1, next: ctx.currentTime + 0.05, srcs: new Set(), now: null };
@@ -630,7 +653,7 @@ function dig() {
   const n = clamp(Math.round(+els.digN.value || 8), 1, 64), L = digLen(), dur = state.buffer.duration;
   const kept = state.regions.filter((r) => r.keep);
   const want = n - kept.length;
-  if (want <= 0) { toast(`Ya tienes ${kept.length} con ★. Quita alguna o sube el número.`, 2500); return; }
+  if (want <= 0) { toast(t('allKept', { n: kept.length }), 2500); return; }
   if (onsetCache?.buffer !== state.buffer) {
     onsetCache = { buffer: state.buffer, onsets: detectOnsets(state.mono, state.buffer.sampleRate, 5) };
   }
@@ -644,7 +667,7 @@ function dig() {
   state.sel = null;
   for (const [a, b] of ranges) addRegion(a, b, base);
   refresh();
-  toast(kept.length ? `${ranges.length} nuevos · ${kept.length} con ★ se quedan` : `${ranges.length} trozos de ${fmtTime(L)}`, 1600);
+  toast(kept.length ? t('dugKept', { n: ranges.length, k: kept.length }) : t('dug', { n: ranges.length, d: fmtTime(L) }), 1600);
 }
 
 // ---------- export ----------
@@ -652,29 +675,30 @@ async function exportZip() {
   const list = sorted();
   if (!list.length) return;
   const used = list.reduce((a, r) => a + regionCost(r), 0);
-  if (used > BUDGET_SAMPLES && !confirm('Los cortes no caben en la memoria del Wave Bard. La web app de Bastl te dejará bajar la calidad para que quepan. ¿Exportar igualmente?')) return;
+  if (used > BUDGET_SAMPLES && !confirm(t('overBudget'))) return;
   els.exportBtn.disabled = true;
   try {
     const names = uniqueNames(list.map((r) => r.name));
     const files = [];
     for (let i = 0; i < list.length; i++) {
-      toast(`Procesando ${i + 1}/${list.length}…`);
+      toast(t('processing', { i: i + 1, n: list.length }));
       const chans = await renderRegion(list[i]);
       const bank = Math.floor(i / BANK_SIZE) + 1;
-      files.push({ name: `${state.stem.toLowerCase()}-chochop/banco${bank}/${names[i]}.wav`, data: encodeWav(chans) });
+      files.push({ name: `${packSlug()}/${t('folderBank')}${bank}/${names[i]}.wav`, data: encodeWav(chans) });
     }
     const blob = new Blob([makeZip(files)], { type: 'application/zip' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${state.stem.toLowerCase()}-chochop.zip`;
+    a.download = `${packSlug()}.zip`;
     document.body.append(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    toast(`ZIP listo: ${files.length} samples en ${Math.ceil(files.length / BANK_SIZE)} banco(s)`, 2500);
+    const nb = Math.ceil(files.length / BANK_SIZE);
+    toast(t('zipReady', { n: files.length, b: nb, banks: t('bank', { n: nb }) }), 2500);
   } catch (e) {
     console.error(e);
-    toast('Algo falló al exportar. Mira la consola.', 3500);
+    toast(t('zipFail'), 3500);
   } finally {
     els.exportBtn.disabled = false;
   }
@@ -710,7 +734,7 @@ let recWorklet = null;
 async function startRec(kind) {
   els.recmenu.open = false;
   if (rec) return;
-  if (state.regions.length && !confirm('La grabación sustituirá el audio actual y sus cortes. ¿Seguir?')) return;
+  if (state.regions.length && !confirm(t('recConfirm'))) return;
   stop();
   let stream;
   try {
@@ -723,14 +747,14 @@ async function startRec(kind) {
   } catch (e) {
     if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') {
       console.error(e);
-      toast('No he podido empezar a grabar en este navegador.', 3500);
+      toast(t('recFail'), 3500);
     }
     return;
   }
   const track = stream.getAudioTracks()[0];
   if (!track) {
     stream.getTracks().forEach((t) => t.stop());
-    toast('No llega audio. Elige una pestaña y marca «Compartir también el audio de la pestaña» (solo Chrome/Edge).', 6000);
+    toast(t('noAudioTrack'), 6000);
     return;
   }
   const ctx = audio();
@@ -758,17 +782,17 @@ async function startRec(kind) {
   };
   stream.getTracks().forEach((t) => t.addEventListener('ended', () => stopRec(true)));
 
-  els.recLabel.textContent = kind === 'tab' ? 'Grabando pestaña' : 'Grabando micro';
-  els.recHint.textContent = kind === 'tab' ? 'Dale al play en la pestaña que has compartido. El silencio del principio y del final se recorta solo.' : '';
+  r.hint = kind === 'tab' ? 'recTabHint' : '';
+  renderRecLabels();
   els.recbar.hidden = false;
   r.timer = setInterval(() => {
     els.recTime.textContent = fmtClock(r.frames / r.sr) + ` / ${REC_MAX_S / 60}:00`;
     els.recLevel.style.width = Math.min(100, Math.sqrt(r.peak) * 100) + '%';
     els.recLevel.classList.toggle('hot', r.peak > 0.98);
     if (kind === 'tab' && !r.heard && r.frames / r.sr > 6) {
-      els.recHint.textContent = 'Aún no llega sonido. ¿Está sonando la pestaña? Algunas webs (Spotify, Netflix…) bloquean la grabación y solo dan silencio.';
-    } else if (r.heard && kind === 'tab') {
-      els.recHint.textContent = 'Llega sonido. Para cuando quieras.';
+      if (r.hint !== 'recNoSound') { r.hint = 'recNoSound'; renderRecLabels(); }
+    } else if (r.heard && kind === 'tab' && r.hint !== 'recHeard') {
+      r.hint = 'recHeard'; renderRecLabels();
     }
   }, 100);
 }
@@ -798,7 +822,7 @@ async function stopRec(keep) {
   for (let i = 0; i < total; i++) if (chans.some((d) => Math.abs(d[i]) > REC_SILENCE)) { first = i; break; }
   for (let i = total - 1; i > first; i--) if (chans.some((d) => Math.abs(d[i]) > REC_SILENCE)) { last = i; break; }
   if (first < 0) {
-    toast('Solo ha llegado silencio. Si era Spotify u otra web con protección, no deja grabar.', 5000);
+    toast(t('recSilent'), 5000);
     return;
   }
   const pad = Math.round(0.01 * r.sr);
@@ -808,7 +832,13 @@ async function stopRec(keep) {
   const t = new Date();
   const hhmm = `${String(t.getHours()).padStart(2, '0')}${String(t.getMinutes()).padStart(2, '0')}`;
   setBuffer(buf, `${r.kind === 'tab' ? 'tab' : 'mic'}-${hhmm}.wav`);
-  toast(`Grabados ${fmtTime(buf.duration)}. A trocear.`, 2000);
+  toast(t('recDone', { d: fmtTime(buf.duration) }), 2000);
+}
+
+function renderRecLabels() {
+  if (!rec) return;
+  els.recLabel.textContent = t(rec.kind === 'tab' ? 'recTab' : 'recMic');
+  els.recHint.textContent = rec.hint ? t(rec.hint) : '';
 }
 
 function fmtClock(s) {
@@ -855,7 +885,7 @@ function bindGlobal() {
   $('dig').addEventListener('click', dig);
   $('heroRec').addEventListener('click', (e) => { e.stopPropagation(); els.recmenu.open = true; });
   $('clear').addEventListener('click', () => {
-    if (state.regions.length && confirm('¿Borrar todos los cortes?')) { state.regions = []; state.sel = null; refresh(); }
+    if (state.regions.length && confirm(t('clearConfirm'))) { state.regions = []; state.sel = null; refresh(); }
   });
   els.digLen.addEventListener('input', applyDigLen);
   els.exportBtn.addEventListener('click', exportZip);
@@ -892,6 +922,22 @@ function bindGlobal() {
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', draw);
 }
 
+function bindLang() {
+  document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+  onLangChange(() => { renderMeta(); renderRecLabels(); if (state.buffer) refresh(); });
+  applyI18n();
+}
+
+function bindPack() {
+  els.pack.addEventListener('input', () => {
+    setPack(els.pack.value);
+    renumber();
+    refresh();
+  });
+}
+
+bindLang();
+bindPack();
 bindGlobal();
 bindRec();
 bindWave();
