@@ -1,28 +1,37 @@
-# Colaborar en chop chop
+# Contributing to chop chop
 
-¡Gracias por querer mejorar chop chop! Ideas, fallos, traducciones y código son bienvenidos.
+Thanks for wanting to make chop chop better! Ideas, bug reports, translations and code are all welcome.
 
-## Cómo
+## Ways to help
 
-- **Ideas y fallos:** abre un *issue* en GitHub contando qué esperabas y qué pasó (navegador, sistema y, si puedes, el tipo de audio).
-- **Código o traducciones:** haz un *fork*, crea una rama y abre un *pull request*. Mejor cambios pequeños y con un objetivo claro.
-- **Probarlo en local:** no hay build ni dependencias.
+- **Report a bug** — [open an issue](https://github.com/StreetShark123/chochop/issues/new/choose) with your browser and OS, what you did, what you expected and what happened. If it's about a specific file, mention its format (WAV, MP3…), length and sample rate.
+- **Suggest an idea** — open an issue describing the problem it solves before writing code, so we can agree on the approach.
+- **Improve a translation** — all interface text lives in [`i18n.js`](i18n.js), in Spanish (`es`), Galician (`gl`) and English (`en`).
+- **Send code** — fork the repo, create a branch, and open a pull request. Small, focused changes are easiest to review.
 
-  ```sh
-  python3 -m http.server
-  # abre http://localhost:8000
-  ```
+## Running it locally
 
-## Reglas de la casa
+No build step, no dependencies:
 
-- **Privacidad ante todo:** nada de analítica, cookies, servicios externos ni peticiones de red. Todo tiene que seguir ejecutándose en el navegador. La política de seguridad (`vercel.json`) bloquea cualquier conexión saliente y no se relaja.
-- **Sin dependencias ni paso de build:** HTML, CSS y JavaScript tal cual.
-- **Textos en los tres idiomas:** si añades texto visible, ponlo en `i18n.js` en castellano, galego e inglés (si no sabes alguno, dilo en el PR y lo completamos).
+```sh
+python3 tools/serve.py
+# open http://localhost:8000
+```
 
-## Licencia y autoría
+`tools/serve.py` sends the same security headers as production (read from `vercel.json`). Please test your change with it: if something works with a plain static server but breaks here, the Content-Security-Policy is blocking it.
 
-chop chop es de **StreetShark123**, que lo mantiene y decide qué cambios se incorporan.
+## House rules
 
-Al enviar una contribución aceptas que se publique bajo la [licencia MIT](LICENSE) del proyecto. Puedes añadir tu nombre en el PR para que conste en el historial.
+1. **Privacy first.** No analytics, cookies, trackers, third-party scripts, fonts or APIs, and no network requests of any kind. Everything must keep running in the browser. The Content-Security-Policy in `vercel.json` (including `connect-src 'none'`) is part of the product and must not be loosened.
+2. **No dependencies, no build.** Plain HTML, CSS and ES modules, served as they are.
+3. **Three languages.** Any visible text goes in `i18n.js` in `es`, `gl` and `en`. If you don't speak one of them, say so in the PR and it will be filled in.
+4. **Match the existing code.** Same style, naming and comment density as the surrounding code. Keep pure logic (no DOM) in `dsp.js`.
+5. **Check before you send.** Load a file, dig, chop, play in order and shuffled, and download a ZIP — with the browser console open and no errors.
 
-El nombre **chop chop** y su logo identifican el proyecto original. Puedes hacer *forks* y versiones propias con total libertad según la licencia MIT, pero, por favor, usa otro nombre para no confundirlas con el original.
+## Ownership and license
+
+chop chop is created and maintained by **StreetShark123**, who reviews contributions and decides what gets merged.
+
+By submitting a contribution you agree that it is published under the project's [MIT license](LICENSE). Your authorship stays in the git history.
+
+The name **chop chop** and its logo identify the original project. You're free to fork it and publish your own version under the MIT license — please just give it a different name so it isn't confused with the original.

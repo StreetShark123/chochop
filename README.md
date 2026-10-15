@@ -1,73 +1,127 @@
 # chop chop ✂
 
-**dig · chop · download**: saca samples de cualquier audio, directamente en el navegador.
+**dig · chop · download** — pull samples from any audio, right in your browser.
 
-Es una página web estática: se abre en el navegador y todo el audio se procesa en local, sin subir nada a ningún sitio.
+**→ [chochop.vercel.app](https://chochop.vercel.app)**
 
-## Qué hace
+![chop chop: a waveform with slices marked on it](og.png)
 
-**Dig & chop**: cargas un audio, sacas trozos y los afinas.
+chop chop is a small web tool for turning any sound into a pack of samples: load or record some audio, *dig* out a handful of slices, *chop* them into shape and *download* them as a ZIP of WAV files ready for your sampler.
 
-- **Carga** WAV, MP3, AIFF, OGG, FLAC o M4A, o **graba** una pestaña del navegador, el micro o el audio del ordenador (Chrome/Edge de escritorio; el audio del sistema depende del sistema operativo).
-- **Dig**: «saca 8 trozos de 2 s» al azar (empezando en golpes), repartidos por todo el audio o seguidos desde el cursor. Marca con ★ los que te gusten y vuelve a cavar: solo cambian los demás.
-- **Chop**: arrastra el centro de un trozo para moverlo y sus bordes para ajustarlo. Doble clic añade uno; arrastrar en vacío crea uno a mano.
-- Ajustes por trozo: nombre de 8 caracteres, mono/estéreo, velocidad (×1, ×0,75, ×0,5, ×0,25, estilo cinta), fades, normalizar y al revés.
-- **Escucha** cada trozo, o todos seguidos o en orden aleatorio y en bucle.
-- Un medidor indica la duración total de los trozos (la barra llega a 89 s, la memoria de un Wave Bard en mono).
-- **Descarga** un ZIP con el nombre del pack que elijas: WAV de 16 bits a 44,1 kHz, en carpetas de 8 (`banco1`, `banco2`…) con nombres válidos de 8 caracteres. El nombre del pack también da nombre a los sonidos, salvo los que renombres a mano.
-- En castellano, galego e English.
+Everything happens in your browser. No uploads, no accounts, no tracking — see [Privacy](#privacy).
 
-## Atajos
+## How it works
 
-| Tecla | Acción |
+### 1 · Dig
+
+Ask for something like **“8 slices of 2 s”** and hit **⛏ Dig**. Choose how to dig:
+
+- **random** — random spots, each starting on a detected hit, without overlapping.
+- **spread** — evenly spread across the whole audio, snapped to the nearest hit.
+- **in a row** — back to back from the cursor (click the waveform to place it).
+
+Star ★ the slices you like and dig again: starred slices stay, the rest get replaced. Changing the seconds resizes every unstarred slice on the spot.
+
+### 2 · Chop
+
+- Drag the middle of a slice to move it and its edges to resize it.
+- Double-click the waveform to add a slice of the chosen length; drag over an empty area to draw one by hand (hold <kbd>Alt</kbd> to draw on top of another).
+- Per-slice settings: name (8 characters), mono/stereo, speed (×1, ×0.75, ×0.5, ×0.25, tape style), fade in/out, normalize and reverse.
+- Listen to one slice, or play them all **in order** or **shuffled**, back to back and looping.
+
+### 3 · Download
+
+Give the pack a name and hit **⬇ Download ZIP**. You get 16-bit / 44.1 kHz WAV files in folders of 8 (`bank1`, `bank2`… — folder names follow the interface language), each named with up to 8 characters. The pack name also seeds the sample names (`RAIN01`, `RAIN02`…); slices you rename by hand keep their names.
+
+A meter shows the total length of your slices. The bar tops out at 89 s, which is what a Bastl Wave Bard holds in mono — handy as a reference for small samplers.
+
+## Getting audio in
+
+- **Open** WAV, MP3, AIFF, OGG, FLAC or M4A — anything your browser can decode — or drop a file onto the page.
+- **● Record**, captured as raw, uncompressed audio with the browser's voice processing (noise suppression, echo cancellation, auto gain) turned off. Leading and trailing silence is trimmed automatically; recordings are capped at 5 minutes.
+  - **A browser tab** — whatever plays in another tab (YouTube, SoundCloud, Bandcamp…). Pick the tab and tick “Also share tab audio”. Desktop Chrome/Edge only. Some sites (e.g. Spotify, Netflix) block capture and only give silence; chop chop tells you when that happens.
+  - **The mic** — objects, voices, the street.
+  - **This computer** — everything your system plays. Share the entire screen with “Share system audio”. Works in Chrome/Edge on Windows and ChromeOS; on macOS it depends on the macOS and Chrome versions.
+
+## Keyboard shortcuts
+
+| Key | Action |
 | --- | --- |
-| D | Dig |
-| K | ★ al trozo seleccionado |
-| Doble clic | Añadir un trozo del largo elegido |
-| Arrastrar | Crear trozo (Alt: encima de otro) |
-| Espacio | Escuchar / parar |
-| Supr / Retroceso | Quitar el trozo seleccionado |
-| ← → | Trozo anterior / siguiente |
-| Esc | Deseleccionar |
-| Rueda | Zoom · Mayús + rueda: desplazar |
+| <kbd>D</kbd> | Dig |
+| <kbd>K</kbd> | Star / unstar the selected slice |
+| <kbd>Space</kbd> | Play / stop |
+| <kbd>Delete</kbd> / <kbd>Backspace</kbd> | Remove the selected slice |
+| <kbd>←</kbd> <kbd>→</kbd> | Previous / next slice |
+| <kbd>Esc</kbd> | Deselect |
+| Wheel | Zoom · <kbd>Shift</kbd> + wheel: scroll |
+| Double-click | Add a slice of the chosen length |
 
-## Ejemplo: cargarlos en un Bastl Wave Bard
+## Languages
 
-1. Exporta el ZIP y descomprímelo.
-2. Abre la [web app de Bastl](https://apps.bastl-instruments.com/wave-bard-sample-loader/) y arrastra los WAV de cada carpeta a un banco.
-3. Pulsa «Generate firmware file» y copia el `.uf2` al Wave Bard en modo boot (SHIFT pulsado al encenderlo, con USB).
+The interface is available in **Español**, **Galego** and **English** (switch at the top right; the choice is remembered, and the first visit follows your browser language).
 
-Consejo: para que las escalas del Bard cuadren, los samples melódicos deberían estar afinados en Do.
+## Browser support
 
-## Usarlo en local
+Made for desktop browsers. Editing, listening and downloading use standard Web Audio and should work in current Chrome, Edge, Firefox and Safari (it's mainly tested in Chrome). Recording a tab or the system audio needs desktop Chrome or Edge; recording the mic works wherever the browser allows microphone access.
+
+## Example: loading a pack into a Bastl Wave Bard
+
+1. Download the ZIP and unzip it.
+2. Open the [Bastl sample loader](https://apps.bastl-instruments.com/wave-bard-sample-loader/) and drag the WAVs from each folder into a bank.
+3. Click “Generate firmware file” and copy the `.uf2` to the Wave Bard in boot mode (hold SHIFT while powering it over USB).
+
+Tip: tune melodic samples to C so the Bard's scales line up.
+
+## Privacy
+
+chop chop **collects no data**. Your audio and recordings are processed only in your browser and are never uploaded anywhere. No accounts, no cookies, no analytics, no ads.
+
+This is enforced, not just promised:
+
+- The site is served with a strict **Content-Security-Policy** (see [`vercel.json`](vercel.json)) including `connect-src 'none'`, so the browser refuses any outgoing connection from the page. You can check it in your browser's developer tools.
+- Fonts are self-hosted; the page loads nothing from third parties.
+- `Referrer-Policy: no-referrer`, and a `Permissions-Policy` that only allows the microphone and screen capture for the site itself.
+- The only things stored, in your own browser, are your language and whether to show the help on arrival.
+
+Like any website, the hosting provider (Vercel) keeps technical request logs (such as IP addresses) for a limited time.
+
+## Development
+
+There is no build step and no dependencies: plain HTML, CSS and JavaScript modules.
 
 ```sh
-python3 -m http.server
-# abre http://localhost:8000
+python3 tools/serve.py
+# open http://localhost:8000
 ```
 
-Al usar módulos ES no funciona abriendo `index.html` con doble clic: necesita un servidor, o GitHub Pages.
+`tools/serve.py` serves the site with the same security headers as production, read from `vercel.json`, so anything that would break under the Content-Security-Policy breaks locally too. (Opening `index.html` directly from disk won't work, because ES modules need a server.)
 
-## Estructura
+### Project layout
 
-- `index.html`, `style.css`, `fonts.css` + `fonts/`: interfaz y tipografías locales. `i18n.js`: textos en es / gl / en.
-- `favicon.svg`, `icon-*.png`, `og.png`, `site.webmanifest`: iconos e imagen para compartir.
-- `app.js`: editor, dig, grabación, reproducción, render con `OfflineAudioContext` y exportación. `rec-worklet.js`: captura de audio en bruto.
-- `dsp.js`: funciones puras (detección de golpes, dig, WAV, ZIP, nombres, presupuesto de memoria), sin dependencias.
+| Path | What it is |
+| --- | --- |
+| `index.html`, `style.css` | Interface |
+| `app.js` | Editor, dig, recording, playback, rendering (`OfflineAudioContext`) and ZIP export |
+| `dsp.js` | Pure functions: hit detection, dig, WAV and ZIP encoding, names, memory budget |
+| `rec-worklet.js` | AudioWorklet that captures raw audio while recording |
+| `i18n.js` | All interface text in es / gl / en |
+| `fonts.css`, `fonts/` | Self-hosted fonts (SIL Open Font License, see [`fonts/README.md`](fonts/README.md)) |
+| `favicon.svg`, `icon-*.png`, `og.png`, `site.webmanifest` | Icons, share image and web app manifest |
+| `vercel.json` | Hosting config and security headers |
+| `tools/serve.py` | Local server with production headers |
 
-## Privacidad
+### Deployment
 
-chop chop **no recoge ningún dato**. El audio y las grabaciones se procesan solo en tu navegador y nunca se suben a ningún sitio. Sin cuentas, sin cookies, sin analítica y sin publicidad.
+The site is hosted on Vercel and deploys automatically on every push to `main`.
 
-No es solo una promesa: la web se sirve con una política de seguridad (`Content-Security-Policy`, en [`vercel.json`](vercel.json)) que impide al navegador conectarse a cualquier otro sitio (`connect-src 'none'`). Las fuentes se sirven desde la propia web. En el navegador solo se guardan el idioma elegido y si quieres ver la ayuda al entrar. Como cualquier web, el servidor que la aloja (Vercel) registra datos técnicos de cada visita, como la IP, durante un tiempo limitado.
+## Contributing
 
-## Licencia
+Ideas, bug reports, translations and code are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Código abierto con [licencia MIT](LICENSE) · © 2026 **StreetShark123**. Puedes usarlo, copiarlo, modificarlo y compartirlo libremente, también con fines comerciales, siempre que mantengas el aviso de copyright y la licencia.
+## License
 
-Las fuentes de `fonts/` (Silkscreen y JetBrains Mono) tienen su propia licencia libre, la SIL Open Font License 1.1.
+[MIT](LICENSE) © 2026 **StreetShark123**. You're free to use, copy, modify and share it, including commercially, as long as you keep the copyright notice and license.
 
-## Colaborar
+The fonts in `fonts/` are distributed under the SIL Open Font License 1.1.
 
-Las contribuciones son bienvenidas: mira [CONTRIBUTING.md](CONTRIBUTING.md). El nombre **chop chop** identifica el proyecto original de StreetShark123; si haces tu propia versión, usa otro nombre.
-
+The name **chop chop** identifies the original project by StreetShark123. If you publish your own version, please give it a different name.
