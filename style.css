@@ -226,7 +226,12 @@ h2 .step { margin-right: 6px; vertical-align: 1px; }
 .howfoot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .howfoot .check { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; }
 
-.foot { max-width: 1200px; margin: 0 auto; padding: 12px 20px 36px; font-size: 12px; }
+.foot { width: 100%; max-width: 1200px; margin: 0 auto; padding: 12px 20px 32px; font-size: 12px; }
+.foot p { margin: 0 0 4px; }
+.footmeta .link, .footmeta a { color: var(--muted); font-size: 12px; }
+.footmeta .link:hover, .footmeta a:hover { color: var(--ink); }
+.privlist { margin: 0 0 14px; padding-left: 18px; display: grid; gap: 6px; }
+.privlist li::marker { color: var(--wave); }
 
 /* recording bar */
 .recbar {

@@ -7,6 +7,7 @@
 <meta name="description" content="Saca samples de cualquier audio, directamente en el navegador.">
 <meta name="theme-color" content="#0b0c0b">
 <meta name="color-scheme" content="dark">
+<meta name="author" content="StreetShark123">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -25,9 +26,8 @@
 <meta property="og:locale:alternate" content="gl_ES">
 <meta property="og:locale:alternate" content="en_GB">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -167,7 +167,15 @@
   </section>
 </main>
 
-<footer class="foot muted" data-i18n-html="foot"></footer>
+<footer class="foot muted">
+  <p data-i18n="foot"></p>
+  <p class="footmeta">
+    <span data-i18n="noData">Sin datos: todo pasa en tu navegador</span> ·
+    <button type="button" id="privBtn" class="link" data-i18n="privacy">Privacidad</button> ·
+    <a href="https://github.com/StreetShark123/chochop" target="_blank" rel="noopener" data-i18n="openSource">Código abierto (MIT)</a> ·
+    <span>© 2026 StreetShark123</span>
+  </p>
+</footer>
 
 <div id="recbar" class="recbar" hidden>
   <span class="recdot" aria-hidden="true"></span>
@@ -191,6 +199,22 @@
   <div class="howfoot">
     <label class="check"><input type="checkbox" id="howNoShow"> <span data-i18n="noShow">No mostrar más</span></label>
     <button type="button" id="howClose" class="btn primary" data-i18n="close">Cerrar</button>
+  </div>
+</dialog>
+<dialog id="privacy" class="howto" aria-labelledby="privTitle">
+  <h2 id="privTitle" data-i18n="privacy">Privacidad</h2>
+  <p><b data-i18n="priv1"></b></p>
+  <ul class="privlist">
+    <li data-i18n="priv2"></li>
+    <li data-i18n="priv3"></li>
+    <li data-i18n="priv4"></li>
+    <li data-i18n="priv5"></li>
+    <li data-i18n="priv6"></li>
+  </ul>
+  <p class="muted small" data-i18n-html="priv7"></p>
+  <div class="howfoot">
+    <span class="muted small">© 2026 StreetShark123 · MIT</span>
+    <button type="button" id="privClose" class="btn primary" data-i18n="close">Cerrar</button>
   </div>
 </dialog>
 <div id="toast" class="toast" hidden></div>

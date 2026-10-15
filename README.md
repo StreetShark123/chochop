@@ -50,7 +50,24 @@ Al usar módulos ES no funciona abriendo `index.html` con doble clic: necesita u
 
 ## Estructura
 
-- `index.html`, `style.css`: interfaz. `i18n.js`: textos en es / gl / en.
+- `index.html`, `style.css`, `fonts.css` + `fonts/`: interfaz y tipografías locales. `i18n.js`: textos en es / gl / en.
 - `favicon.svg`, `icon-*.png`, `og.png`, `site.webmanifest`: iconos e imagen para compartir.
-- `app.js`: editor, dig, grabación, reproducción, render con `OfflineAudioContext` y exportación.
+- `app.js`: editor, dig, grabación, reproducción, render con `OfflineAudioContext` y exportación. `rec-worklet.js`: captura de audio en bruto.
 - `dsp.js`: funciones puras (detección de golpes, dig, WAV, ZIP, nombres, presupuesto de memoria), sin dependencias.
+
+## Privacidad
+
+chop chop **no recoge ningún dato**. El audio y las grabaciones se procesan solo en tu navegador y nunca se suben a ningún sitio. Sin cuentas, sin cookies, sin analítica y sin publicidad.
+
+No es solo una promesa: la web se sirve con una política de seguridad (`Content-Security-Policy`, en [`vercel.json`](vercel.json)) que impide al navegador conectarse a cualquier otro sitio (`connect-src 'none'`). Las fuentes se sirven desde la propia web. En el navegador solo se guardan el idioma elegido y si quieres ver la ayuda al entrar. Como cualquier web, el servidor que la aloja (Vercel) registra datos técnicos de cada visita, como la IP, durante un tiempo limitado.
+
+## Licencia
+
+Código abierto con [licencia MIT](LICENSE) · © 2026 **StreetShark123**. Puedes usarlo, copiarlo, modificarlo y compartirlo libremente, también con fines comerciales, siempre que mantengas el aviso de copyright y la licencia.
+
+Las fuentes de `fonts/` (Silkscreen y JetBrains Mono) tienen su propia licencia libre, la SIL Open Font License 1.1.
+
+## Colaborar
+
+Las contribuciones son bienvenidas: mira [CONTRIBUTING.md](CONTRIBUTING.md). El nombre **chop chop** identifica el proyecto original de StreetShark123; si haces tu propia versión, usa otro nombre.
+

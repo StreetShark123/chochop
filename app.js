@@ -708,24 +708,6 @@ async function exportZip() {
 const REC_MAX_S = 300;
 const REC_SILENCE = 0.001; // ≈ -60 dBFS
 const RAW = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
-const REC_WORKLET = `
-class Rec extends AudioWorkletProcessor {
-  constructor() {
-    super(); this.b = null; this.n = 0;
-    this.port.onmessage = () => { this.flush(); this.port.postMessage('done'); };
-  }
-  flush() { if (this.b && this.n) this.port.postMessage(this.b.map((a) => a.slice(0, this.n))); this.b = null; this.n = 0; }
-  process(inputs) {
-    const x = inputs[0];
-    if (!x || !x.length) return true;
-    if (!this.b) this.b = x.map(() => new Float32Array(4096));
-    for (let c = 0; c < this.b.length; c++) this.b[c].set(x[c] || x[0], this.n);
-    this.n += x[0].length;
-    if (this.n >= 4096) { this.port.postMessage(this.b, this.b.map((a) => a.buffer)); this.b = null; this.n = 0; }
-    return true;
-  }
-}
-registerProcessor('rec', Rec);`;
 let rec = null;
 let recWorklet = null;
 
@@ -757,7 +739,7 @@ async function startRec(kind) {
   }
   const ctx = audio();
   await ctx.resume();
-  recWorklet ||= ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([REC_WORKLET], { type: 'text/javascript' })));
+  recWorklet ||= ctx.audioWorklet.addModule('rec-worklet.js');
   await recWorklet;
   const ch = kind === 'tab' ? 2 : Math.min(2, track.getSettings().channelCount || 1);
   const src = ctx.createMediaStreamSource(stream);
@@ -889,7 +871,7 @@ function bindGlobal() {
   els.exportBtn.addEventListener('click', exportZip);
 
   document.addEventListener('keydown', (e) => {
-    if ($('howto').open) return;
+    if (document.querySelector('dialog[open]')) return;
     if (e.key === 'Escape' && els.recmenu.open) { els.recmenu.open = false; return; }
     if (!state.buffer || rec) return;
     const tag = document.activeElement?.tagName;
@@ -940,6 +922,11 @@ function bindHowto() {
   d.addEventListener('click', (e) => { if (e.target === d) d.close(); }); // backdrop
   $('howBtn').addEventListener('click', open);
   if (!hidden()) open();
+
+  const priv = $('privacy');
+  $('privBtn').addEventListener('click', () => priv.showModal());
+  $('privClose').addEventListener('click', () => priv.close());
+  priv.addEventListener('click', (e) => { if (e.target === priv) priv.close(); });
 }
 
 function bindPack() {
