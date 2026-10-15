@@ -2,13 +2,29 @@ import {
   TARGET_RATE, BUDGET_SAMPLES, BANK_SIZE, regionCost, cleanName, uniqueNames,
   detectOnsets, digRanges, finish, encodeWav, makeZip, fmtTime,
 } from './dsp.js';
-import { t, applyI18n, setLang, onLangChange } from './i18n.js';
+import { t, applyI18n, setLang, onLangChange, getLang } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
+
+// Icons come from the SVG sprite in index.html.
+const SVG = 'http://www.w3.org/2000/svg';
+function icon(name) {
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('class', 'ic');
+  svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS(SVG, 'use');
+  use.setAttribute('href', `#i-${name}`);
+  svg.append(use);
+  return svg;
+}
+
+// Numbers follow the interface language (decimal comma in es/gl).
+const dec = (s) => (getLang() === 'en' ? s : s.replace('.', ','));
+const fmtT = (s) => dec(fmtTime(s));
 const els = {
   file: $('file'), wavewrap: $('wavewrap'), fname: $('fname'), fmeta: $('fmeta'),
   wave: $('wave'), overview: $('overview'), regions: $('regions'), count: $('count'),
-  memtext: $('memtext'), memfill: $('memfill'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), toast: $('toast'),
+  memtext: $('memtext'), memfill: $('memfill'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), pStar: $('pStar'), selName: $('selName'), toast: $('toast'),
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
   recmenu: $('recmenu'), recbar: $('recbar'), recLabel: $('recLabel'), recTime: $('recTime'),
   recLevel: $('recLevel'), recHint: $('recHint'),
@@ -75,7 +91,7 @@ function setReady(on) {
 function renderMeta() {
   const buf = state.buffer;
   if (!buf) return;
-  els.fmeta.textContent = `${fmtTime(buf.duration)} · ${t(buf.numberOfChannels === 1 ? 'monoL' : 'stereoL')} · ${buf.sampleRate} Hz`;
+  els.fmeta.textContent = `${fmtT(buf.duration)} · ${t(buf.numberOfChannels === 1 ? 'monoL' : 'stereoL')} · ${buf.sampleRate} Hz`;
 }
 
 // The pack name names the ZIP and its folder, and seeds auto sample names
@@ -293,22 +309,38 @@ function renderList() {
     bank.textContent = `B${Math.floor(i / BANK_SIZE) + 1}·${(i % BANK_SIZE) + 1}`;
     const nm = document.createElement('span');
     nm.className = 'nm';
-    nm.textContent = r.name + (r.mono ? '' : ' ⧉') + (r.reverse ? ' ↺' : '') + (r.speed !== 1 ? ` ×${r.speed}` : '');
+    nm.textContent = r.name;
+    for (const tag of [!r.mono && 'ST', r.reverse && 'REV', r.speed !== 1 && dec(`×${r.speed}`)]) {
+      if (!tag) continue;
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = tag;
+      nm.append(chip);
+    }
     const dur = document.createElement('span');
     dur.className = 'dur';
-    dur.textContent = fmtTime((r.end - r.start) / r.speed);
+    dur.textContent = fmtT((r.end - r.start) / r.speed);
     const star = document.createElement('button');
-    star.className = 'star' + (r.keep ? ' on' : '');
+    star.type = 'button';
+    star.className = 'iconbtn star' + (r.keep ? ' on' : '');
     star.title = t(r.keep ? 'starOn' : 'starOff');
-    star.textContent = r.keep ? '★' : '☆';
+    star.setAttribute('aria-label', star.title);
+    star.setAttribute('aria-pressed', String(!!r.keep));
+    star.append(icon(r.keep ? 'star-f' : 'star'));
     star.addEventListener('click', (e) => { e.stopPropagation(); toggleKeep(r); });
     const play = document.createElement('button');
-    play.className = 'play';
+    play.type = 'button';
+    play.className = 'iconbtn play';
     play.title = t('listen');
-    play.textContent = '▶';
+    play.setAttribute('aria-label', `${t('listen')} ${r.name}`);
+    play.append(icon('play'));
     play.addEventListener('click', (e) => { e.stopPropagation(); select(r.id); playRegion(r); });
     li.append(star, bank, nm, dur, play);
+    li.tabIndex = 0;
     li.addEventListener('click', () => { select(r.id); reveal(r); });
+    li.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target === li) { select(r.id); reveal(r); els.regions.querySelector(`[data-id="${r.id}"]`)?.focus(); }
+    });
     els.regions.append(li);
   });
 }
@@ -318,7 +350,7 @@ function renderMeter() {
   const pct = used / BUDGET_SAMPLES;
   els.memfill.style.width = Math.min(100, pct * 100) + '%';
   els.memfill.classList.toggle('over', pct > 1);
-  els.memtext.textContent = `Total ${(used / TARGET_RATE).toFixed(1)} s${pct > 1 ? t('memOver') : ''}`;
+  els.memtext.textContent = `Total ${dec((used / TARGET_RATE).toFixed(1))} s${pct > 1 ? t('memOver') : ''}`;
   const n = state.regions.length;
   const nb = Math.ceil(n / BANK_SIZE);
   els.exportInfo.textContent = n
@@ -336,7 +368,14 @@ function renderInspector() {
   const r = getSel();
   els.props.hidden = !r;
   els.noSel.hidden = !!r;
+  els.pStar.hidden = !r;
+  els.selName.textContent = r ? r.name : '';
   if (!r) return;
+  els.pStar.classList.toggle('on', !!r.keep);
+  els.pStar.title = t(r.keep ? 'starOn' : 'starOff');
+  els.pStar.setAttribute('aria-label', els.pStar.title);
+  els.pStar.setAttribute('aria-pressed', String(!!r.keep));
+  els.pStar.querySelector('use').setAttribute('href', r.keep ? '#i-star-f' : '#i-star');
   const active = document.activeElement;
   const set = (el, v) => { if (el !== active) el.value = v; };
   set(P.name, r.name);
@@ -349,7 +388,7 @@ function renderInspector() {
   P.norm.checked = r.normalize;
   P.rev.checked = r.reverse;
   const len = (r.end - r.start) / r.speed;
-  els.pInfo.textContent = t('pInfo', { d: fmtTime(len), m: (regionCost(r) / TARGET_RATE).toFixed(2) });
+  els.pInfo.textContent = t('pInfo', { d: fmtT(len), m: dec((regionCost(r) / TARGET_RATE).toFixed(2)) });
 }
 
 function bindInspector() {
@@ -365,6 +404,7 @@ function bindInspector() {
   P.norm.addEventListener('change', upd((r) => { r.normalize = P.norm.checked; }));
   P.rev.addEventListener('change', upd((r) => { r.reverse = P.rev.checked; }));
   $('pPlay').addEventListener('click', () => { const r = getSel(); if (r) playRegion(r); });
+  els.pStar.addEventListener('click', () => { const r = getSel(); if (r) toggleKeep(r); });
   $('pDel').addEventListener('click', () => { if (state.sel) deleteRegion(state.sel); });
   $('pApplyAll').addEventListener('click', () => {
     const s = getSel(); if (!s) return;
@@ -675,7 +715,7 @@ function dig() {
   state.sel = null;
   for (const [a, b] of ranges) addRegion(a, b, base);
   refresh();
-  toast(kept.length ? t('dugKept', { n: ranges.length, k: kept.length }) : t('dug', { n: ranges.length, d: fmtTime(L) }), 1600);
+  toast(kept.length ? t('dugKept', { n: ranges.length, k: kept.length }) : t('dug', { n: ranges.length, d: fmtT(L) }), 1600);
 }
 
 // ---------- export ----------
@@ -823,7 +863,7 @@ async function stopRec(keep) {
   const now = new Date();
   const hhmm = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
   setBuffer(buf, `${{ tab: 'tab', system: 'pc', mic: 'mic' }[r.kind]}-${hhmm}.wav`);
-  toast(t('recDone', { d: fmtTime(buf.duration) }), 2000);
+  toast(t('recDone', { d: fmtT(buf.duration) }), 2000);
 }
 
 function renderRecLabels() {
