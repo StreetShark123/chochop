@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chochop</title>
+<meta name="description" content="Trocea audio en samples listos para el Bastl Kastle 2 Wave Bard">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">chochop</span><span class="tag">trocea audio para el Wave Bard</span></div>
+  <div class="actions">
+    <label class="btn" for="file">Abrir audio</label>
+    <input id="file" type="file" accept="audio/*,.wav,.mp3,.aif,.aiff,.ogg,.flac,.m4a" hidden>
+    <button id="export" class="btn primary" disabled>Exportar ZIP</button>
+  </div>
+</header>
+
+<main>
+  <section id="drop" class="drop">
+    <p><strong>Arrastra aquí un audio</strong> o pulsa «Abrir audio».</p>
+    <p class="muted">Todo se procesa en tu navegador; nada se sube a ningún sitio.</p>
+  </section>
+
+  <section id="editor" hidden>
+    <div class="filebar">
+      <span id="fname" class="fname"></span>
+      <span id="fmeta" class="muted"></span>
+    </div>
+
+    <div class="wavewrap">
+      <canvas id="wave"></canvas>
+      <canvas id="overview"></canvas>
+    </div>
+
+    <div class="toolbar">
+      <div class="group">
+        <button id="zoomin" class="btn sm" title="Zoom (también rueda del ratón)">+</button>
+        <button id="zoomout" class="btn sm">−</button>
+        <button id="zoomsel" class="btn sm">Zoom al corte</button>
+        <button id="zoomall" class="btn sm">Ver todo</button>
+      </div>
+      <div class="group">
+        <button id="playall" class="btn sm">▶ Original desde el cursor</button>
+        <button id="stop" class="btn sm">■ Parar</button>
+      </div>
+      <div class="group">
+        <label class="inline">Corte automático
+          <select id="automode">
+            <option value="onsets">por golpes</option>
+            <option value="equal">en partes iguales</option>
+          </select>
+        </label>
+        <label class="inline" id="sensWrap">Sensibilidad <input id="sens" type="range" min="1" max="10" value="5"></label>
+        <label class="inline" id="partsWrap" hidden>Partes <input id="parts" type="number" min="2" max="64" value="8"></label>
+        <button id="autochop" class="btn sm">Trocear</button>
+        <button id="clear" class="btn sm ghost">Borrar cortes</button>
+      </div>
+    </div>
+    <p class="hint muted">Arrastra sobre la onda para crear un corte (<kbd>Alt</kbd>+arrastrar para crearlo encima de otro) · arrastra sus bordes para ajustarlo · clic para seleccionarlo · <kbd>Espacio</kbd> escucha el corte · <kbd>Supr</kbd> lo borra · <kbd>←</kbd><kbd>→</kbd> cambian de corte · rueda = zoom, <kbd>Mayús</kbd>+rueda = desplazar</p>
+
+    <div class="meter">
+      <div class="meterlabel"><span>Memoria del Wave Bard</span><span id="memtext"></span></div>
+      <div class="meterbar"><div id="memfill"></div></div>
+    </div>
+
+    <div class="panels">
+      <section class="list">
+        <h2>Cortes <span id="count" class="muted"></span></h2>
+        <ol id="regions"></ol>
+      </section>
+      <section class="inspector" id="inspector">
+        <h2>Corte seleccionado</h2>
+        <div id="noSel" class="muted">Ningún corte seleccionado.</div>
+        <form id="props" hidden>
+          <label>Nombre (máx. 8) <input id="pName" maxlength="8" autocomplete="off"></label>
+          <div class="row">
+            <label>Inicio (s) <input id="pStart" type="number" step="0.001" min="0"></label>
+            <label>Fin (s) <input id="pEnd" type="number" step="0.001" min="0"></label>
+          </div>
+          <div class="row">
+            <label>Canales
+              <select id="pMono"><option value="1">Mono</option><option value="0">Estéreo</option></select>
+            </label>
+            <label>Velocidad
+              <select id="pSpeed">
+                <option value="1">×1 (original)</option>
+                <option value="0.75">×0,75 (más lento y grave)</option>
+                <option value="0.5">×0,5 (una octava abajo)</option>
+                <option value="0.25">×0,25 (dos octavas abajo)</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <label>Fade in (ms) <input id="pFadeIn" type="number" min="0" max="5000" step="1"></label>
+            <label>Fade out (ms) <input id="pFadeOut" type="number" min="0" max="5000" step="1"></label>
+          </div>
+          <div class="row checks">
+            <label class="check"><input id="pNorm" type="checkbox"> Normalizar</label>
+            <label class="check"><input id="pRev" type="checkbox"> Invertir</label>
+          </div>
+          <div class="row">
+            <button type="button" id="pPlay" class="btn sm">▶ Escuchar procesado</button>
+            <button type="button" id="pApplyAll" class="btn sm ghost" title="Copia canales, velocidad, fades, normalizar e invertir a todos los cortes">Aplicar ajustes a todos</button>
+            <button type="button" id="pDel" class="btn sm danger">Borrar</button>
+          </div>
+          <p class="muted small" id="pInfo"></p>
+        </form>
+      </section>
+    </div>
+  </section>
+</main>
+
+<footer class="foot muted">
+  Exporta WAV de 16 bits a 44,1 kHz agrupados en carpetas de 8 (un banco cada una). Cárgalos en la
+  <a href="https://apps.bastl-instruments.com/wave-bard-sample-loader/" target="_blank" rel="noopener">web app de Bastl</a>.
+  Consejo: para que las escalas del Bard cuadren, los samples melódicos deberían estar en Do.
+</footer>
+
+<div id="toast" class="toast" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
