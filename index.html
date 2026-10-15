@@ -30,7 +30,7 @@
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="noaudio">
 <header class="top">
   <div class="brand"><span class="logo">chop chop</span><span class="tag" data-i18n="tag">dig · chop · download</span></div>
   <div class="actions">
@@ -47,31 +47,26 @@
       <div class="menu">
         <button type="button" id="recTab"><b data-i18n="recTabT">Una pestaña</b><span data-i18n="recTabD"></span></button>
         <button type="button" id="recMic"><b data-i18n="recMicT">El micro</b><span data-i18n="recMicD"></span></button>
+        <button type="button" id="recSys"><b data-i18n="recSysT">El ordenador</b><span data-i18n="recSysD"></span></button>
       </div>
     </details>
   </div>
 </header>
 
 <main>
-  <section id="drop" class="drop">
-    <div class="dropbox">
-      <p class="droptitle" data-i18n="dropT">Arrastra aquí un audio</p>
-      <div class="herobtns">
-        <label class="btn primary" for="file" data-i18n="open">Abrir audio</label>
-        <button type="button" id="heroRec" class="btn rec" data-i18n="rec">● Grabar</button>
-      </div>
-      <p class="muted small" data-i18n="dropNote"></p>
-    </div>
-  </section>
-
-  <section id="editor" hidden>
+  <section id="editor">
     <div class="filebar">
-      <span id="fname" class="fname"></span>
+      <span id="fname" class="fname" data-i18n="noFile">Sin audio</span>
       <span id="fmeta" class="muted"></span>
       <button id="zoomall" class="link" data-i18n="zoomAll">Ver todo</button>
     </div>
 
-    <div class="wavewrap">
+    <div class="wavewrap" id="wavewrap">
+      <label for="file" id="waveEmpty" class="waveempty">
+        <b data-i18n="dropT">Arrastra aquí un audio</b>
+        <span data-i18n="dropNote2"></span>
+        <span class="muted small" data-i18n="dropNote"></span>
+      </label>
       <canvas id="wave"></canvas>
       <canvas id="overview"></canvas>
     </div>

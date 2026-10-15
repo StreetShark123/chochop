@@ -6,7 +6,7 @@ import { t, applyI18n, setLang, onLangChange } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {
-  file: $('file'), drop: $('drop'), editor: $('editor'), fname: $('fname'), fmeta: $('fmeta'),
+  file: $('file'), wavewrap: $('wavewrap'), fname: $('fname'), fmeta: $('fmeta'),
   wave: $('wave'), overview: $('overview'), regions: $('regions'), count: $('count'),
   memtext: $('memtext'), memfill: $('memfill'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), toast: $('toast'),
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
@@ -58,10 +58,18 @@ function setBuffer(buf, name) {
   state.view = { start: 0, end: buf.duration };
   els.fname.textContent = name;
   renderMeta();
-  els.drop.hidden = true;
-  els.editor.hidden = false;
+  els.fname.removeAttribute('data-i18n');
+  setReady(true);
   resize();
   refresh();
+}
+
+// Before any audio is loaded the editor is visible but its controls are off.
+function setReady(on) {
+  document.body.classList.toggle('noaudio', !on);
+  document.querySelectorAll('#editor button, #editor input, #editor select').forEach((el) => {
+    if (el.id !== 'export') el.disabled = !on;
+  });
 }
 
 function renderMeta() {
@@ -270,7 +278,7 @@ function renderList() {
   if (!list.length) {
     const li = document.createElement('li');
     li.className = 'muted empty';
-    li.textContent = t('emptyList');
+    li.textContent = t(state.buffer ? 'emptyList' : 'emptyNoAudio');
     els.regions.append(li);
     return;
   }
@@ -718,12 +726,14 @@ async function startRec(kind) {
   stop();
   let stream;
   try {
-    stream = kind === 'tab'
-      ? await navigator.mediaDevices.getDisplayMedia({
-        video: true, audio: { ...RAW, suppressLocalAudioPlayback: false },
-        systemAudio: 'include', selfBrowserSurface: 'exclude', surfaceSwitching: 'include',
-      })
-      : await navigator.mediaDevices.getUserMedia({ audio: { ...RAW, channelCount: { ideal: 2 } } });
+    stream = kind === 'mic'
+      ? await navigator.mediaDevices.getUserMedia({ audio: { ...RAW, channelCount: { ideal: 2 } } })
+      : await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: kind === 'system' ? 'monitor' : 'browser' },
+        audio: { ...RAW, suppressLocalAudioPlayback: false },
+        systemAudio: 'include', monitorTypeSurfaces: 'include',
+        selfBrowserSurface: 'exclude', surfaceSwitching: 'include',
+      });
   } catch (e) {
     if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') {
       console.error(e);
@@ -734,14 +744,14 @@ async function startRec(kind) {
   const track = stream.getAudioTracks()[0];
   if (!track) {
     stream.getTracks().forEach((t) => t.stop());
-    toast(t('noAudioTrack'), 6000);
+    toast(t(kind === 'system' ? 'noSysAudio' : 'noAudioTrack'), 7000);
     return;
   }
   const ctx = audio();
   await ctx.resume();
   recWorklet ||= ctx.audioWorklet.addModule('rec-worklet.js');
   await recWorklet;
-  const ch = kind === 'tab' ? 2 : Math.min(2, track.getSettings().channelCount || 1);
+  const ch = kind === 'mic' ? Math.min(2, track.getSettings().channelCount || 1) : 2;
   const src = ctx.createMediaStreamSource(stream);
   const node = new AudioWorkletNode(ctx, 'rec', { channelCount: ch, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
   const mute = ctx.createGain();
@@ -762,16 +772,17 @@ async function startRec(kind) {
   };
   stream.getTracks().forEach((t) => t.addEventListener('ended', () => stopRec(true)));
 
-  r.hint = kind === 'tab' ? 'recTabHint' : '';
+  r.hint = { tab: 'recTabHint', system: 'recSysHint' }[kind] || '';
   renderRecLabels();
   els.recbar.hidden = false;
   r.timer = setInterval(() => {
     els.recTime.textContent = fmtClock(r.frames / r.sr) + ` / ${REC_MAX_S / 60}:00`;
     els.recLevel.style.width = Math.min(100, Math.sqrt(r.peak) * 100) + '%';
     els.recLevel.classList.toggle('hot', r.peak > 0.98);
-    if (kind === 'tab' && !r.heard && r.frames / r.sr > 6) {
-      if (r.hint !== 'recNoSound') { r.hint = 'recNoSound'; renderRecLabels(); }
-    } else if (r.heard && kind === 'tab' && r.hint !== 'recHeard') {
+    const noSound = kind === 'system' ? 'recNoSoundSys' : 'recNoSound';
+    if (kind !== 'mic' && !r.heard && r.frames / r.sr > 6) {
+      if (r.hint !== noSound) { r.hint = noSound; renderRecLabels(); }
+    } else if (r.heard && kind !== 'mic' && r.hint !== 'recHeard') {
       r.hint = 'recHeard'; renderRecLabels();
     }
   }, 100);
@@ -809,15 +820,15 @@ async function stopRec(keep) {
   const a = Math.max(0, first - pad), b = Math.min(total, Math.max(last, first) + pad + 1);
   const buf = audio().createBuffer(r.ch, b - a, r.sr);
   chans.forEach((d, c) => buf.copyToChannel(d.subarray(a, b), c));
-  const t = new Date();
-  const hhmm = `${String(t.getHours()).padStart(2, '0')}${String(t.getMinutes()).padStart(2, '0')}`;
-  setBuffer(buf, `${r.kind === 'tab' ? 'tab' : 'mic'}-${hhmm}.wav`);
+  const now = new Date();
+  const hhmm = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+  setBuffer(buf, `${{ tab: 'tab', system: 'pc', mic: 'mic' }[r.kind]}-${hhmm}.wav`);
   toast(t('recDone', { d: fmtTime(buf.duration) }), 2000);
 }
 
 function renderRecLabels() {
   if (!rec) return;
-  els.recLabel.textContent = t(rec.kind === 'tab' ? 'recTab' : 'recMic');
+  els.recLabel.textContent = t({ tab: 'recTab', system: 'recSys', mic: 'recMic' }[rec.kind]);
   els.recHint.textContent = rec.hint ? t(rec.hint) : '';
 }
 
@@ -831,9 +842,11 @@ function bindRec() {
   const canTab = !!md?.getDisplayMedia && !/Mobi|Android/i.test(navigator.userAgent);
   const canMic = !!md?.getUserMedia;
   $('recTab').hidden = !canTab;
+  $('recSys').hidden = !canTab;
   $('recMic').hidden = !canMic;
   els.recmenu.hidden = !canTab && !canMic;
   $('recTab').addEventListener('click', () => startRec('tab'));
+  $('recSys').addEventListener('click', () => startRec('system'));
   $('recMic').addEventListener('click', () => startRec('mic'));
   $('recStop').addEventListener('click', () => stopRec(true));
   $('recCancel').addEventListener('click', () => stopRec(false));
@@ -853,8 +866,8 @@ function hideToast() { els.toast.hidden = true; }
 
 function bindGlobal() {
   els.file.addEventListener('change', () => { const f = els.file.files[0]; if (f) loadFile(f); els.file.value = ''; });
-  ['dragenter', 'dragover'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); els.drop.classList.add('over'); }));
-  ['dragleave', 'drop'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); els.drop.classList.remove('over'); }));
+  ['dragenter', 'dragover'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); els.wavewrap.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); els.wavewrap.classList.remove('over'); }));
   document.addEventListener('drop', (e) => { const f = e.dataTransfer?.files?.[0]; if (f) loadFile(f); });
 
   $('zoomall').addEventListener('click', () => setView(0, state.buffer.duration));
@@ -863,7 +876,6 @@ function bindGlobal() {
   els.seqRand.addEventListener('click', () => playSeq('rand'));
   $('stop').addEventListener('click', () => { stop(); draw(); });
   $('dig').addEventListener('click', dig);
-  $('heroRec').addEventListener('click', (e) => { e.stopPropagation(); els.recmenu.open = true; });
   $('clear').addEventListener('click', () => {
     if (state.regions.length && confirm(t('clearConfirm'))) { state.regions = []; state.sel = null; refresh(); }
   });
@@ -905,7 +917,7 @@ function bindGlobal() {
 
 function bindLang() {
   document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
-  onLangChange(() => { renderMeta(); renderRecLabels(); if (state.buffer) refresh(); });
+  onLangChange(() => { renderMeta(); renderRecLabels(); refresh(); });
   applyI18n();
 }
 
@@ -938,6 +950,8 @@ function bindPack() {
 }
 
 bindLang();
+setReady(false);
+refresh();
 bindHowto();
 bindPack();
 bindGlobal();

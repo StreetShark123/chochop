@@ -8,7 +8,7 @@ Es una página web estática: se abre en el navegador y todo el audio se procesa
 
 **Dig & chop**: cargas un audio, sacas trozos y los afinas.
 
-- **Carga** WAV, MP3, AIFF, OGG, FLAC o M4A, o **graba** una pestaña del navegador o el micro (Chrome/Edge de escritorio).
+- **Carga** WAV, MP3, AIFF, OGG, FLAC o M4A, o **graba** una pestaña del navegador, el micro o el audio del ordenador (Chrome/Edge de escritorio; el audio del sistema depende del sistema operativo).
 - **Dig**: «saca 8 trozos de 2 s» al azar (empezando en golpes), repartidos por todo el audio o seguidos desde el cursor. Marca con ★ los que te gusten y vuelve a cavar: solo cambian los demás.
 - **Chop**: arrastra el centro de un trozo para moverlo y sus bordes para ajustarlo. Doble clic añade uno; arrastrar en vacío crea uno a mano.
 - Ajustes por trozo: nombre de 8 caracteres, mono/estéreo, velocidad (×1, ×0,75, ×0,5, ×0,25, estilo cinta), fades, normalizar y al revés.
