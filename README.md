@@ -26,7 +26,8 @@ Star ★ the slices you like and dig again: starred slices stay, the rest get re
 
 - Drag the middle of a slice to move it and its edges to resize it.
 - Double-click the waveform to add a slice of the chosen length; drag over an empty area to draw one by hand (hold <kbd>Alt</kbd> to draw on top of another).
-- Per-slice settings: name (8 characters), mono/stereo, speed (×1, ×0.75, ×0.5, ×0.25, tape style), fade in/out, normalize and reverse.
+- Per-slice settings: name (8 characters), mono/stereo, speed (×1, ×0.75, ×0.5, ×0.25, tape style), fade in/out, volume and reverse.
+- **Volume** per slice: *Original*, *Normalized* (peak to −0.3 dBFS), *Loud* (default) or *Max*. Loud and Max push the slice into a look-ahead limiter, so quiet tails come up while peaks stay under −0.3 dBFS — closer to the level of commercial sample packs.
 - Listen to one slice, or play them all **in order** or **shuffled**, back to back and looping.
 
 ### 3 · Download

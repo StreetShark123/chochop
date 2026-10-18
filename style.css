@@ -214,7 +214,7 @@ h2 .step { margin-right: 6px; vertical-align: 1px; }
 #props input:not([type=checkbox]), #props select { width: 100%; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; }
 .row > label { flex: 1; min-width: 120px; }
-#props .row.checks label.check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); flex: 0 0 auto; min-width: 0; }
+#props label.revcheck { display: flex; align-items: center; gap: 6px; align-self: flex-end; padding-bottom: 6px; font-size: 13px; color: var(--ink); cursor: pointer; }
 #pInfo { margin: 0; }
 .actionsrow { align-items: center; }
 .actionsrow #pDel { margin-left: auto; }

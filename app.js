@@ -37,7 +37,7 @@ const state = {
   peaks: null,       // {min, max, bin}
   stem: 'SMP',
   pack: '',          // pack name: ZIP + folder name, and stem for auto sample names
-  regions: [],       // {id, start, end, name, mono, speed, fadeIn, fadeOut, normalize, reverse}
+  regions: [],       // {id, start, end, name, mono, speed, fadeIn, fadeOut, lvl, reverse, keep, custom}
   sel: null,
   view: { start: 0, end: 1 },
   cursor: 0,
@@ -135,8 +135,8 @@ const getSel = () => state.regions.find((r) => r.id === state.sel) || null;
 function defaults() {
   const s = getSel();
   return s
-    ? { mono: s.mono, speed: s.speed, fadeIn: s.fadeIn, fadeOut: s.fadeOut, normalize: s.normalize, reverse: false }
-    : { mono: true, speed: 1, fadeIn: 2, fadeOut: 10, normalize: true, reverse: false };
+    ? { mono: s.mono, speed: s.speed, fadeIn: s.fadeIn, fadeOut: s.fadeOut, lvl: s.lvl, reverse: false }
+    : { mono: true, speed: 1, fadeIn: 2, fadeOut: 10, lvl: 'loud', reverse: false };
 }
 
 function addRegion(start, end, opts = {}) {
@@ -385,7 +385,7 @@ function renderMeter() {
 
 const P = {
   name: $('pName'), start: $('pStart'), end: $('pEnd'), mono: $('pMono'), speed: $('pSpeed'),
-  fadeIn: $('pFadeIn'), fadeOut: $('pFadeOut'), norm: $('pNorm'), rev: $('pRev'),
+  fadeIn: $('pFadeIn'), fadeOut: $('pFadeOut'), lvl: $('pLevel'), rev: $('pRev'),
 };
 
 function renderInspector() {
@@ -409,7 +409,7 @@ function renderInspector() {
   P.speed.value = String(r.speed);
   set(P.fadeIn, r.fadeIn);
   set(P.fadeOut, r.fadeOut);
-  P.norm.checked = r.normalize;
+  P.lvl.value = r.lvl;
   P.rev.checked = r.reverse;
   const len = (r.end - r.start) / r.speed;
   els.pInfo.textContent = t('pInfo', { d: fmtT(len), m: dec((regionCost(r) / TARGET_RATE).toFixed(2)) });
@@ -425,14 +425,14 @@ function bindInspector() {
   P.speed.addEventListener('change', upd((r) => { r.speed = +P.speed.value; }));
   P.fadeIn.addEventListener('change', upd((r) => { r.fadeIn = clamp(+P.fadeIn.value || 0, 0, 5000); }));
   P.fadeOut.addEventListener('change', upd((r) => { r.fadeOut = clamp(+P.fadeOut.value || 0, 0, 5000); }));
-  P.norm.addEventListener('change', upd((r) => { r.normalize = P.norm.checked; }));
+  P.lvl.addEventListener('change', upd((r) => { r.lvl = P.lvl.value; }));
   P.rev.addEventListener('change', upd((r) => { r.reverse = P.rev.checked; }));
   $('pPlay').addEventListener('click', () => { const r = getSel(); if (r) playRegion(r); });
   els.pStar.addEventListener('click', () => { const r = getSel(); if (r) toggleKeep(r); });
   $('pDel').addEventListener('click', () => { if (state.sel) deleteRegion(state.sel); });
   $('pApplyAll').addEventListener('click', () => {
     const s = getSel(); if (!s) return;
-    for (const r of state.regions) Object.assign(r, { mono: s.mono, speed: s.speed, fadeIn: s.fadeIn, fadeOut: s.fadeOut, normalize: s.normalize, reverse: s.reverse });
+    for (const r of state.regions) Object.assign(r, { mono: s.mono, speed: s.speed, fadeIn: s.fadeIn, fadeOut: s.fadeOut, lvl: s.lvl, reverse: s.reverse });
     refresh();
     toast(t('copied'), 1600);
   });
@@ -595,14 +595,14 @@ async function renderRegion(r) {
   const out = await off.startRendering();
   const chans = [];
   for (let c = 0; c < outCh; c++) chans.push(new Float32Array(out.getChannelData(c)));
-  return finish(chans, { reverse: r.reverse, normalize: r.normalize, fadeInMs: r.fadeIn, fadeOutMs: r.fadeOut });
+  return finish(chans, { reverse: r.reverse, lvl: r.lvl, fadeInMs: r.fadeIn, fadeOutMs: r.fadeOut });
 }
 
 // Processed chops are cached per region until any of their settings change;
 // refresh() drops entries for regions that no longer exist.
 const rendered = new Map();
 async function renderedBuffer(r) {
-  const key = [r.start, r.end, r.mono, r.speed, r.fadeIn, r.fadeOut, r.normalize, r.reverse].join();
+  const key = [r.start, r.end, r.mono, r.speed, r.fadeIn, r.fadeOut, r.lvl, r.reverse].join();
   const hit = rendered.get(r.id);
   if (hit && hit.key === key) return hit.buf;
   const chans = await renderRegion(r);

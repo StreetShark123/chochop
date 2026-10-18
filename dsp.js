@@ -130,21 +130,65 @@ export function digRanges({ onsets = [], dur, n, len, mode = 'random', from = 0,
   return starts.map((s) => [s, Math.min(dur, s + L)]).sort((a, b) => a[0] - b[0]);
 }
 
+// Output level per slice: peak gain drive (dB) into the limiter, or null to leave it untouched.
+export const LEVELS = { off: null, norm: 0, loud: 6, max: 12 };
+const CEILING = 0.966; // -0.3 dBFS
+
 /**
- * Post-process rendered channels in place: reverse, normalize, fades.
- * channels: Float32Array[] at TARGET_RATE.
+ * Peak-normalize, then push `driveDb` into a look-ahead limiter so quiet tails
+ * come up while peaks stay under CEILING. In place.
  */
-export function finish(channels, { reverse, normalize, fadeInMs, fadeOutMs }) {
+function level(channels, driveDb, rate) {
   const len = channels[0].length;
-  if (reverse) channels.forEach((c) => c.reverse());
-  if (normalize) {
-    let peak = 0;
-    for (const c of channels) for (let i = 0; i < len; i++) { const a = Math.abs(c[i]); if (a > peak) peak = a; }
-    if (peak > 0) {
-      const g = 0.966 / peak; // -0.3 dBFS
-      for (const c of channels) for (let i = 0; i < len; i++) c[i] *= g;
+  let peak = 0;
+  for (const c of channels) for (let i = 0; i < len; i++) { const a = Math.abs(c[i]); if (a > peak) peak = a; }
+  if (!peak) return;
+  const gain = 10 ** (driveDb / 20) / peak; // after this the loudest sample sits at +driveDb dBFS
+  if (driveDb <= 0) { for (const c of channels) for (let i = 0; i < len; i++) c[i] *= gain * CEILING; return; }
+
+  // Gain each sample needs to stay under the ceiling.
+  const need = new Float32Array(len);
+  for (let i = 0; i < len; i++) {
+    let p = 0;
+    for (const c of channels) { const a = Math.abs(c[i]); if (a > p) p = a; }
+    p *= gain;
+    need[i] = p > CEILING ? CEILING / p : 1;
+  }
+  // Look ahead: start reducing L samples before a peak, then release smoothly.
+  const L = Math.max(1, Math.round(0.002 * rate));
+  const rel = 1 - Math.exp(-1 / (0.06 * rate));
+  const env = new Float32Array(len);
+  const dq = new Int32Array(len); // monotonic deque for the sliding minimum of need[i..i+L]
+  let head = 0, tail = 0, g = 1;
+  for (let j = 0; j < Math.min(len, L); j++) { while (tail > head && need[dq[tail - 1]] >= need[j]) tail--; dq[tail++] = j; }
+  for (let i = 0; i < len; i++) {
+    const j = i + L;
+    if (j < len) { while (tail > head && need[dq[tail - 1]] >= need[j]) tail--; dq[tail++] = j; }
+    while (dq[head] < i) head++;
+    const m = need[dq[head]];
+    g = m < g ? m : g + (m - g) * rel;
+    env[i] = g;
+  }
+  // Average the last L gains so the reduction ramps in instead of stepping (still <= need at every peak).
+  let sum = 0;
+  for (let i = 0; i < len; i++) {
+    sum += env[i] - (i >= L ? env[i - L] : 0);
+    const k = gain * (sum + Math.max(0, L - 1 - i)) / L;
+    for (const c of channels) {
+      const y = c[i] * k;
+      c[i] = y > CEILING ? CEILING : y < -CEILING ? -CEILING : y;
     }
   }
+}
+
+/**
+ * Post-process rendered channels in place: reverse, level, fades.
+ * channels: Float32Array[] at TARGET_RATE; lvl is a LEVELS key.
+ */
+export function finish(channels, { reverse, lvl = 'norm', fadeInMs, fadeOutMs }) {
+  const len = channels[0].length;
+  if (reverse) channels.forEach((c) => c.reverse());
+  if (LEVELS[lvl] != null) level(channels, LEVELS[lvl], TARGET_RATE);
   const fi = Math.min(len, Math.round((fadeInMs / 1000) * TARGET_RATE));
   const fo = Math.min(len, Math.round((fadeOutMs / 1000) * TARGET_RATE));
   for (const c of channels) {

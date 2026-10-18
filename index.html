@@ -167,12 +167,19 @@
             </label>
           </div>
           <div class="row">
+            <label><span data-i18n="pLevel">Volumen</span>
+              <select id="pLevel">
+                <option value="off" data-i18n="lvOff">Original</option>
+                <option value="norm" data-i18n="lvNorm">Normalizado</option>
+                <option value="loud" data-i18n="lvLoud">Fuerte</option>
+                <option value="max" data-i18n="lvMax">Máximo</option>
+              </select>
+            </label>
+            <label class="check revcheck"><input id="pRev" type="checkbox"> <span data-i18n="rev">Al revés</span></label>
+          </div>
+          <div class="row">
             <label>Fade in (ms) <input id="pFadeIn" type="number" min="0" max="5000" step="1"></label>
             <label>Fade out (ms) <input id="pFadeOut" type="number" min="0" max="5000" step="1"></label>
-          </div>
-          <div class="row checks">
-            <label class="check"><input id="pNorm" type="checkbox"> <span data-i18n="norm">Normalizar</span></label>
-            <label class="check"><input id="pRev" type="checkbox"> <span data-i18n="rev">Al revés</span></label>
           </div>
           <div class="row actionsrow">
             <button type="button" id="pPlay" class="btn sm"><svg class="ic"><use href="#i-play"/></svg><span data-i18n="pPlay">Escuchar</span></button>
