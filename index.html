@@ -259,32 +259,16 @@
 <dialog id="quantum" class="howto qdialog" aria-labelledby="qTitle">
   <h2 id="qTitle"><svg class="ic"><use href="#i-atom"/></svg> <span data-i18n="qTitle">Dig cuántico</span></h2>
   <p data-i18n="qIntro"></p>
-  <div class="qform">
-    <label class="field"><span class="lab" data-i18n="qIntent">Intención</span><input id="qIntent" maxlength="60" autocomplete="off" data-i18n-ph="qIntentPh"></label>
-    <div class="field"><span class="lab" data-i18n="qKind">Buscar</span>
-      <div class="seg" role="radiogroup" data-i18n-aria="qKind">
-        <label data-i18n-title="qAttrT"><input type="radio" name="qkind" value="attractor" checked><span data-i18n="qAttr">atractor</span></label>
-        <label data-i18n-title="qVoidT"><input type="radio" name="qkind" value="void"><span data-i18n="qVoid">vacío</span></label>
-      </div>
-    </div>
-    <div class="field"><span class="lab" data-i18n="qSource">Azar</span>
-      <div class="seg" role="radiogroup" data-i18n-aria="qSource">
-        <label><input type="radio" name="qsrc" value="sigil" checked><span data-i18n="qSigil">sigilo</span></label>
-        <label><input type="radio" name="qsrc" value="mic"><span data-i18n="qMic">ruido del micro</span></label>
-      </div>
-    </div>
-  </div>
-  <div id="qSigilPane" class="sigilpane">
+  <label class="field qintent"><span class="lab" data-i18n="qIntent">Intención</span><input id="qIntent" maxlength="60" autocomplete="off" data-i18n-ph="qIntentPh"></label>
+  <div class="sigilpane">
     <canvas id="sigil" data-i18n-aria="qSigilHint"></canvas>
     <div class="sigilfoot">
       <span class="muted small" data-i18n="qSigilHint"></span>
       <div class="sigilbar"><div id="sigilFill"></div></div>
       <button type="button" id="sigilClear" class="link" data-i18n="qClear">Borrar</button>
     </div>
-    <p class="muted small" data-i18n="qNote"></p>
   </div>
-  <p id="qMicPane" class="muted small" data-i18n="qMicNote" hidden></p>
-  <p id="qStatus" class="qstatus" hidden><span class="recdot" aria-hidden="true"></span><span data-i18n="qListening">Escuchando el ruido…</span></p>
+  <p class="muted small" data-i18n="qNote"></p>
   <div class="howfoot">
     <button type="button" id="qCancel" class="btn"><span data-i18n="cancel">Cancelar</span></button>
     <button type="button" id="qGo" class="btn primary"><svg class="ic"><use href="#i-atom"/></svg><span data-i18n="qGo">Colapsar</span></button>

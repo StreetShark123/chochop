@@ -122,23 +122,6 @@ export function digRanges({ onsets = [], dur, n, len, mode = 'random', from = 0,
 
 // --- "Quantum" dig (Randonautica-style anomalies) ---
 
-// Parity of a sample's 24-bit value: mixes every bit, so it still works for 16-bit sources.
-function parity24(x) {
-  let v = Math.round(x * 8388608) & 0xffffff;
-  v ^= v >> 16; v ^= v >> 8; v ^= v >> 4; v ^= v >> 2; v ^= v >> 1;
-  return v & 1;
-}
-
-/** Random bits from physical noise: sample parities, debiased with von Neumann's extractor. */
-export function noiseBits(samples) {
-  const out = [];
-  for (let i = 0; i + 1 < samples.length; i += 2) {
-    const a = parity24(samples[i]), b = parity24(samples[i + 1]);
-    if (a !== b) out.push(a);
-  }
-  return out;
-}
-
 /** n positions in [0, dur), 16 bits each (bits are consumed in order). */
 export function bitsToPoints(bits, n, dur) {
   const pts = [];
@@ -151,12 +134,12 @@ export function bitsToPoints(bits, n, dur) {
 }
 
 /**
- * Probability anomalies on the timeline: count random points in every window of `len`
- * and score it against a uniform spread (Poisson z-score). 'attractor' takes the densest
- * windows, 'void' the emptiest; picks don't overlap each other or `taken`, and starts snap
- * to a nearby hit. Returns { ranges, z } with z of the strongest anomaly.
+ * "Attractors" on the timeline: count random points in every window of `len`, score it
+ * against a uniform spread (Poisson z-score) and take the densest windows. Picks don't
+ * overlap each other or `taken`, and starts snap to a nearby hit.
+ * Returns { ranges, z } with z of the strongest attractor.
  */
-export function anomalyRanges({ points, dur, n, len, kind = 'attractor', taken = [], onsets = [] }) {
+export function anomalyRanges({ points, dur, n, len, taken = [], onsets = [] }) {
   const L = Math.min(len, dur), maxStart = Math.max(0, dur - L);
   if (!points.length || n <= 0 || L <= 0) return { ranges: [], z: 0 };
   const pts = Float64Array.from(points).sort();
@@ -168,7 +151,7 @@ export function anomalyRanges({ points, dur, n, len, kind = 'attractor', taken =
     const c = lower(s + L) - lower(s);
     cands.push({ s, z: (c - lambda) / Math.sqrt(lambda || 1) });
   }
-  cands.sort((a, b) => (kind === 'void' ? a.z - b.z : b.z - a.z));
+  cands.sort((a, b) => b.z - a.z);
   const busy = taken.map(([a, b]) => [a, b]), picks = [];
   for (const c of cands) {
     if (picks.length >= n) break;

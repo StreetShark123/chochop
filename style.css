@@ -222,11 +222,8 @@ input[type=checkbox] { width: 16px; height: 16px; margin: 0; }
 .qreport { color: var(--edge); font: 11px var(--pixel); text-transform: uppercase; letter-spacing: 0.5px; }
 .qdialog { width: min(560px, calc(100vw - 32px)); }
 .qdialog h2 .ic { width: 18px; height: 18px; }
-.qform { display: grid; gap: 8px; margin: 4px 0 12px; }
-.qform .field { grid-template-columns: 110px 1fr; }
-.qform .seg { justify-self: start; }
+.field.qintent { grid-template-columns: 110px 1fr; margin-bottom: 12px; }
 .sigilpane { display: grid; gap: 8px; margin-bottom: 12px; }
-.sigilpane[hidden], #qMicPane[hidden] { display: none; }
 #sigil {
   display: block; width: 100%; height: 190px; cursor: crosshair; touch-action: none;
   background-color: #030a06; box-shadow: inset 0 0 0 2px var(--edge-dim);
@@ -238,8 +235,6 @@ input[type=checkbox] { width: 16px; height: 16px; margin: 0; }
 .sigilbar { width: 120px; height: 12px; padding: 2px; box-shadow: inset 0 0 0 2px var(--edge-dim); }
 #sigilFill { height: 100%; width: 0; background: repeating-linear-gradient(90deg, var(--edge) 0 6px, transparent 6px 9px); }
 .sigilpane p { margin: 0; }
-.qstatus { display: flex; align-items: center; gap: 8px; color: var(--edge); font: 11px var(--pixel); text-transform: uppercase; }
-.qstatus[hidden] { display: none; }
 .seg { --cut: 7px; --fc: var(--edge-dim); --fill: var(--bg); display: inline-flex; align-items: stretch; height: var(--h); padding: 4px; }
 .seg label { cursor: pointer; }
 .seg input { position: absolute; opacity: 0; pointer-events: none; }
