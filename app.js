@@ -24,7 +24,7 @@ const fmtT = (s) => dec(fmtTime(s));
 const els = {
   file: $('file'), wavewrap: $('wavewrap'), fname: $('fname'), fmeta: $('fmeta'),
   wave: $('wave'), overview: $('overview'), regions: $('regions'), count: $('count'),
-  memtext: $('memtext'), memfill: $('memfill'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), pStar: $('pStar'), selName: $('selName'), toast: $('toast'),
+  memtext: $('memtext'), memfill: $('memfill'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), pStar: $('pStar'), selName: $('selName'), selWave: $('selWave'), clock: $('clock'), toast: $('toast'),
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
   recmenu: $('recmenu'), recbar: $('recbar'), recLabel: $('recLabel'), recTime: $('recTime'),
   recLevel: $('recLevel'), recHint: $('recHint'),
@@ -218,7 +218,8 @@ function resize() {
 const tToX = (t) => ((t - state.view.start) / (state.view.end - state.view.start)) * els.wave.width;
 const xToT = (x) => state.view.start + (x / els.wave.width) * (state.view.end - state.view.start);
 
-function drawWave(ctx, w, h, from, to, color) {
+// px > 1 draws chunky pixel columns, snapped to a px grid vertically too.
+function drawWave(ctx, w, h, from, to, color, px = 1) {
   const sr = state.buffer.sampleRate;
   const s0 = from * sr, s1 = to * sr;
   const spp = (s1 - s0) / w;
@@ -226,8 +227,9 @@ function drawWave(ctx, w, h, from, to, color) {
   const data = state.mono;
   const mid = h / 2;
   ctx.fillStyle = color;
-  for (let x = 0; x < w; x++) {
-    const a = Math.floor(s0 + x * spp), b = Math.max(a + 1, Math.floor(s0 + (x + 1) * spp));
+  const bar = px > 2 ? px - 1 : px;
+  for (let x = 0; x < w; x += px) {
+    const a = Math.floor(s0 + x * spp), b = Math.max(a + 1, Math.floor(s0 + (x + px) * spp));
     let lo = 1, hi = -1;
     if (spp >= bin * 2) {
       for (let k = Math.floor(a / bin); k < Math.min(min.length, Math.ceil(b / bin)); k++) {
@@ -239,8 +241,9 @@ function drawWave(ctx, w, h, from, to, color) {
       }
     }
     if (hi < lo) continue;
-    const y1 = mid - hi * mid * 0.95, y2 = mid - lo * mid * 0.95;
-    ctx.fillRect(x, y1, 1, Math.max(1, y2 - y1));
+    let y1 = mid - hi * mid * 0.92, y2 = mid - lo * mid * 0.92;
+    if (px > 1) { y1 = Math.floor(y1 / px) * px; y2 = Math.ceil(y2 / px) * px; }
+    ctx.fillRect(x, y1, bar, Math.max(px, y2 - y1));
   }
 }
 
@@ -251,7 +254,7 @@ function draw() {
   ctx.clearRect(0, 0, w, h);
   // regions
   const edge = k['region-edge'];
-  ctx.font = `${11 * dpr}px 'JetBrains Mono', ui-monospace, monospace`;
+  ctx.font = `${8 * dpr}px Silkscreen, ui-monospace, monospace`;
   sorted().forEach((r, i) => {
     const x1 = tToX(r.start), x2 = tToX(r.end);
     if (x2 < 0 || x1 > w) return;
@@ -261,13 +264,13 @@ function draw() {
     ctx.fillStyle = isSel ? k.accent : edge;
     ctx.fillRect(x1, 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
     ctx.fillRect(x2 - dpr * (isSel ? 2 : 1), 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
-    if (x2 - x1 > 28 * dpr) ctx.fillText(`${i + 1} ${r.name}${r.keep ? ' ★' : ''}`, x1 + 4 * dpr, 13 * dpr);
+    if (x2 - x1 > 28 * dpr) ctx.fillText(`${i + 1} ${r.name}${r.keep ? ' *' : ''}`, x1 + 5 * dpr, 13 * dpr);
   });
   // centre line + wave
   ctx.fillStyle = k.line;
   ctx.fillRect(0, h / 2, w, 1);
   ctx.drawImage(layer(layers.wave, w, h, `${state.bufId}:${w}x${h}:${start}:${end}`,
-    (g) => drawWave(g, w, h, start, end, k.wave)), 0, 0);
+    (g) => drawWave(g, w, h, start, end, k.wave, Math.max(1, Math.round(2 * dpr)))), 0, 0);
   // cursor
   ctx.fillStyle = k.muted;
   const cx = tToX(state.cursor);
@@ -280,6 +283,7 @@ function draw() {
   }
   // playhead
   const ph = playheadTime();
+  els.clock.textContent = fmtClockFine(ph ?? state.cursor);
   if (ph != null) {
     ctx.fillStyle = k.accent;
     ctx.fillRect(tToX(ph), 0, 2 * dpr, h);
@@ -321,30 +325,28 @@ function renderList() {
     li.className = 'muted empty';
     li.textContent = t(state.buffer ? 'emptyList' : 'emptyNoAudio');
     els.regions.append(li);
-    return;
   }
+  const thumbs = [];
   list.forEach((r, i) => {
     const li = document.createElement('li');
+    li.className = 'slot';
     li.dataset.id = r.id;
-    if (r.id === state.sel) li.classList.add('sel');
-    if (seq && r.id === seq.now) li.classList.add('now');
-    if (i > 0 && i % BANK_SIZE === 0) li.classList.add('newbank');
-    const bank = document.createElement('span');
-    bank.className = 'bank';
-    bank.textContent = `B${Math.floor(i / BANK_SIZE) + 1}·${(i % BANK_SIZE) + 1}`;
+    li.classList.toggle('sel', r.id === state.sel);
+    li.classList.toggle('now', !!seq && r.id === seq.now);
+    li.classList.toggle('kept', !!r.keep);
+    li.tabIndex = 0;
+    const thumb = document.createElement('canvas');
+    thumb.className = 'thumb';
+    const idx = document.createElement('span');
+    idx.className = 'idx';
+    idx.textContent = `${Math.floor(i / BANK_SIZE) + 1}·${(i % BANK_SIZE) + 1}`;
     const nm = document.createElement('span');
     nm.className = 'nm';
     nm.textContent = r.name;
-    for (const tag of [!r.mono && 'ST', r.reverse && 'REV', r.speed !== 1 && dec(`×${r.speed}`)]) {
-      if (!tag) continue;
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.textContent = tag;
-      nm.append(chip);
-    }
-    const dur = document.createElement('span');
-    dur.className = 'dur';
-    dur.textContent = fmtT((r.end - r.start) / r.speed);
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = [fmtT((r.end - r.start) / r.speed), !r.mono && 'ST', r.reverse && 'REV', r.speed !== 1 && dec(`×${r.speed}`)]
+      .filter(Boolean).join(' · ');
     const star = document.createElement('button');
     star.type = 'button';
     star.className = 'iconbtn star' + (r.keep ? ' on' : '');
@@ -360,13 +362,31 @@ function renderList() {
     play.setAttribute('aria-label', `${t('listen')} ${r.name}`);
     play.append(icon('play'));
     play.addEventListener('click', (e) => { e.stopPropagation(); select(r.id); playRegion(r); });
-    li.append(star, bank, nm, dur, play);
-    li.tabIndex = 0;
+    li.append(thumb, idx, star, play, nm, meta);
     li.addEventListener('click', () => { select(r.id); reveal(r); });
     li.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === li) { select(r.id); reveal(r); } });
     els.regions.append(li);
+    thumbs.push([thumb, r]);
   });
+  // Free slots up to the end of the last bank, so bank capacity is visible at a glance.
+  for (let i = list.length; i < Math.max(1, nb) * BANK_SIZE; i++) {
+    const li = document.createElement('li');
+    li.className = 'slot free';
+    li.setAttribute('aria-hidden', 'true');
+    els.regions.append(li);
+  }
+  if (state.buffer) {
+    const k = colors();
+    for (const [c, r] of thumbs) paintSlice(c, r, r.id === state.sel ? k.accent : k.wave);
+  }
   if (refocus) els.regions.querySelector('li.sel')?.focus();
+}
+
+// Draw one slice's waveform into a small canvas sized to its box.
+function paintSlice(c, r, color) {
+  const w = (c.width = Math.max(1, Math.round(c.clientWidth * dpr)));
+  const h = (c.height = Math.max(1, Math.round(c.clientHeight * dpr)));
+  drawWave(c.getContext('2d'), w, h, r.start, r.end, color, Math.max(1, Math.round(2 * dpr)));
 }
 
 function renderMeter() {
@@ -394,7 +414,9 @@ function renderInspector() {
   els.noSel.hidden = !!r;
   els.pStar.hidden = !r;
   els.selName.textContent = r ? r.name : '';
+  els.selWave.parentElement.classList.toggle('on', !!r);
   if (!r) return;
+  paintSlice(els.selWave, r, colors().accent);
   els.pStar.classList.toggle('on', !!r.keep);
   els.pStar.title = t(r.keep ? 'starOn' : 'starOff');
   els.pStar.setAttribute('aria-label', els.pStar.title);
@@ -905,6 +927,11 @@ function renderRecLabels() {
   if (!rec) return;
   els.recLabel.textContent = t({ tab: 'recTab', system: 'recSys', mic: 'recMic' }[rec.kind]);
   els.recHint.textContent = rec.hint ? t(rec.hint) : '';
+}
+
+function fmtClockFine(s) {
+  const m = Math.floor(s / 60);
+  return `${String(m).padStart(2, '0')}:${(s - m * 60).toFixed(2).padStart(5, '0')}`;
 }
 
 function fmtClock(s) {

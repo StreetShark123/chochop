@@ -77,97 +77,107 @@
 
 <main>
   <section id="editor">
-    <div class="card wavecard">
-      <div class="filebar">
-        <span id="fname" class="fname" data-i18n="noFile">Sin audio</span>
-        <span id="fmeta" class="muted"></span>
+    <div class="module">
+      <div class="tabrow">
+        <span class="tab"><span id="fname" data-i18n="noFile">Sin audio</span></span>
+        <span id="fmeta" class="tabmeta"></span>
       </div>
-      <div class="wavewrap" id="wavewrap">
-        <label for="file" id="waveEmpty" class="waveempty">
-          <svg class="ic big"><use href="#i-open"/></svg>
-          <b data-i18n="dropT">Arrastra aquí un audio</b>
-          <span data-i18n="dropNote2"></span>
-          <span class="muted small" data-i18n="dropNote"></span>
-        </label>
-        <canvas id="wave"></canvas>
-        <canvas id="overview"></canvas>
-      </div>
-      <div class="transport">
-        <button id="playall" class="btn sm" data-i18n-title="playOrigT"><svg class="ic"><use href="#i-play"/></svg><span>Original</span></button>
-        <button id="seqPlay" class="btn sm" data-i18n-title="seqPlayT"><svg class="ic"><use href="#i-order"/></svg><span data-i18n="seqPlay">Seguido</span></button>
-        <button id="seqRand" class="btn sm" data-i18n-title="seqRandT"><svg class="ic"><use href="#i-shuffle"/></svg><span data-i18n="seqRand">Aleatorio</span></button>
-        <button id="stop" class="btn sm icon" data-i18n-title="stopT" data-i18n-aria="stopT"><svg class="ic"><use href="#i-stop"/></svg></button>
-        <button id="zoomall" class="btn sm icon" data-i18n-title="zoomAll" data-i18n-aria="zoomAll"><svg class="ic"><use href="#i-fit"/></svg></button>
-        <div class="meter" data-i18n-title="memT">
-          <span id="memtext"></span>
-          <div class="meterbar"><div id="memfill"></div></div>
+      <div class="panel wavepanel">
+        <div class="wavewrap" id="wavewrap">
+          <label for="file" id="waveEmpty" class="waveempty">
+            <svg class="ic big"><use href="#i-open"/></svg>
+            <b data-i18n="dropT">Arrastra aquí un audio</b>
+            <span data-i18n="dropNote2"></span>
+            <span class="muted small" data-i18n="dropNote"></span>
+          </label>
+          <canvas id="wave"></canvas>
+          <canvas id="overview"></canvas>
+        </div>
+        <div class="transport">
+          <div class="clock" id="clock" aria-hidden="true">00:00.00</div>
+          <button id="playall" class="btn" data-i18n-title="playOrigT"><svg class="ic"><use href="#i-play"/></svg><span>Original</span></button>
+          <button id="seqPlay" class="btn" data-i18n-title="seqPlayT"><svg class="ic"><use href="#i-order"/></svg><span data-i18n="seqPlay">Seguido</span></button>
+          <button id="seqRand" class="btn" data-i18n-title="seqRandT"><svg class="ic"><use href="#i-shuffle"/></svg><span data-i18n="seqRand">Aleatorio</span></button>
+          <button id="stop" class="btn icon" data-i18n-title="stopT" data-i18n-aria="stopT"><svg class="ic"><use href="#i-stop"/></svg></button>
+          <button id="zoomall" class="btn icon" data-i18n-title="zoomAll" data-i18n-aria="zoomAll"><svg class="ic"><use href="#i-fit"/></svg></button>
+          <div class="meter" data-i18n-title="memT">
+            <span id="memtext"></span>
+            <div class="meterbar"><div id="memfill"></div></div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="card dig">
-      <span class="step dig-step">Dig</span>
-      <span class="sentence">
-        <span data-i18n="digPull">Saca</span>
-        <input id="digN" type="number" min="1" max="64" value="8" data-i18n-aria="digN">
-        <span data-i18n="digOf">trozos de</span>
-        <input id="digLen" type="number" min="0.05" max="30" step="0.1" value="2" data-i18n-aria="digLen"> s
-      </span>
-      <div class="seg" role="radiogroup" data-i18n-aria="digHow">
-        <label data-i18n-title="mRandomT"><input type="radio" name="dig" value="random" checked><span data-i18n="mRandom">al azar</span></label>
-        <label data-i18n-title="mSpreadT"><input type="radio" name="dig" value="spread"><span data-i18n="mSpread">repartidos</span></label>
-        <label data-i18n-title="mRowT"><input type="radio" name="dig" value="row"><span data-i18n="mRow">seguidos</span></label>
+    <div class="module">
+      <div class="tabrow"><span class="tab tab-dig">Dig</span></div>
+      <div class="panel dig">
+        <span class="sentence">
+          <span data-i18n="digPull">Saca</span>
+          <input id="digN" type="number" min="1" max="64" value="8" data-i18n-aria="digN">
+          <span data-i18n="digOf">trozos de</span>
+          <input id="digLen" type="number" min="0.05" max="30" step="0.1" value="2" data-i18n-aria="digLen"> s
+        </span>
+        <div class="seg" role="radiogroup" data-i18n-aria="digHow">
+          <label data-i18n-title="mRandomT"><input type="radio" name="dig" value="random" checked><span data-i18n="mRandom">al azar</span></label>
+          <label data-i18n-title="mSpreadT"><input type="radio" name="dig" value="spread"><span data-i18n="mSpread">repartidos</span></label>
+          <label data-i18n-title="mRowT"><input type="radio" name="dig" value="row"><span data-i18n="mRow">seguidos</span></label>
+        </div>
+        <button id="dig" class="btn primary"><svg class="ic"><use href="#i-dig"/></svg><span>Dig</span></button>
+        <span id="digHint" class="dighint muted" data-i18n="digHint"></span>
       </div>
-      <button id="dig" class="btn primary"><svg class="ic"><use href="#i-dig"/></svg><span>Dig</span></button>
-      <span id="digHint" class="dighint muted" data-i18n="digHint"></span>
     </div>
 
     <div class="panels">
-      <section class="card list">
-        <div class="listhead">
-          <h2><span class="step">Chop</span> <span data-i18n="slices">Trozos</span> <span id="count" class="muted"></span></h2>
-          <button id="clear" class="link" data-i18n="clear">Empezar de cero</button>
-        </div>
-        <ol id="regions"></ol>
-        <div class="exportbox">
-          <div class="exporthead"><span class="step dl-step">Download</span></div>
-          <label class="packname">
-            <span data-i18n="packName">Nombre del pack</span>
-            <input id="pack" maxlength="40" autocomplete="off" spellcheck="false">
-          </label>
-          <div class="exportgo">
-            <span id="exportInfo" class="muted small"></span>
-            <button id="export" class="btn primary" disabled><svg class="ic"><use href="#i-download"/></svg><span data-i18n="download">Descargar ZIP</span></button>
+      <div class="col">
+        <div class="module">
+          <div class="tabrow">
+            <span class="tab">Chop</span>
+            <span id="count" class="tabmeta"></span>
+            <button id="clear" class="link" data-i18n="clear">Empezar de cero</button>
+          </div>
+          <div class="panel">
+            <ol id="regions" class="hold"></ol>
           </div>
         </div>
-      </section>
-      <section class="card inspector" id="inspector">
-        <div class="inshead">
-          <h2><span data-i18n="slice">Trozo</span> <span id="selName" class="selname"></span></h2>
+        <div class="module">
+          <div class="tabrow"><span class="tab tab-dl">Download</span></div>
+          <div class="panel exportbox">
+            <label class="packname">
+              <span class="lab" data-i18n="packName">Nombre del pack</span>
+              <input id="pack" maxlength="40" autocomplete="off" spellcheck="false">
+            </label>
+            <div class="exportgo">
+              <span id="exportInfo" class="muted small"></span>
+              <button id="export" class="btn primary" disabled><svg class="ic"><use href="#i-download"/></svg><span data-i18n="download">Descargar ZIP</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module" id="inspector">
+        <div class="tabrow">
+          <span class="tab"><span data-i18n="slice">Trozo</span> <span id="selName" class="selname"></span></span>
           <button type="button" id="pStar" class="iconbtn star" hidden><svg class="ic"><use href="#i-star"/></svg></button>
         </div>
-        <div id="noSel" class="muted" data-i18n="noSel"></div>
-        <form id="props" hidden>
-          <label><span data-i18n="pName">Nombre</span> <input id="pName" maxlength="8" autocomplete="off" spellcheck="false"></label>
-          <div class="row">
-            <label><span data-i18n="pStart">Inicio (s)</span> <input id="pStart" type="number" step="0.001" min="0"></label>
-            <label><span data-i18n="pEnd">Fin (s)</span> <input id="pEnd" type="number" step="0.001" min="0"></label>
-          </div>
-          <div class="row">
-            <label><span data-i18n="pCh">Canales</span>
+        <div class="panel inspector">
+          <div class="preview"><canvas id="selWave"></canvas></div>
+          <div id="noSel" class="muted" data-i18n="noSel"></div>
+          <form id="props" hidden>
+            <label class="field"><span class="lab" data-i18n="pName">Nombre</span><input id="pName" maxlength="8" autocomplete="off" spellcheck="false"></label>
+            <label class="field"><span class="lab" data-i18n="pStart">Inicio (s)</span><input id="pStart" type="number" step="0.001" min="0"></label>
+            <label class="field"><span class="lab" data-i18n="pEnd">Fin (s)</span><input id="pEnd" type="number" step="0.001" min="0"></label>
+            <label class="field"><span class="lab" data-i18n="pCh">Canales</span>
               <select id="pMono"><option value="1">Mono</option><option value="0" data-i18n="stereo">Estéreo</option></select>
             </label>
-            <label><span data-i18n="pSpeed">Velocidad</span>
+            <label class="field"><span class="lab" data-i18n="pSpeed">Velocidad</span>
               <select id="pSpeed">
                 <option value="1">×1</option>
                 <option value="0.75" data-i18n="x075">×0,75</option>
-                <option value="0.5" data-i18n="x05">×0,5 (−1 octava)</option>
-                <option value="0.25" data-i18n="x025">×0,25 (−2 octavas)</option>
+                <option value="0.5" data-i18n="x05">×0,5 · −1 oct.</option>
+                <option value="0.25" data-i18n="x025">×0,25 · −2 oct.</option>
               </select>
             </label>
-          </div>
-          <div class="row">
-            <label><span data-i18n="pLevel">Volumen</span>
+            <label class="field"><span class="lab" data-i18n="pLevel">Volumen</span>
               <select id="pLevel">
                 <option value="off" data-i18n="lvOff">Original</option>
                 <option value="norm" data-i18n="lvNorm">Normalizado</option>
@@ -175,20 +185,18 @@
                 <option value="max" data-i18n="lvMax">Máximo</option>
               </select>
             </label>
-            <label class="check revcheck"><input id="pRev" type="checkbox"> <span data-i18n="rev">Al revés</span></label>
-          </div>
-          <div class="row">
-            <label>Fade in (ms) <input id="pFadeIn" type="number" min="0" max="5000" step="1"></label>
-            <label>Fade out (ms) <input id="pFadeOut" type="number" min="0" max="5000" step="1"></label>
-          </div>
-          <div class="row actionsrow">
-            <button type="button" id="pPlay" class="btn sm"><svg class="ic"><use href="#i-play"/></svg><span data-i18n="pPlay">Escuchar</span></button>
-            <button type="button" id="pApplyAll" class="btn sm ghost" data-i18n-title="applyAllT"><svg class="ic"><use href="#i-copy"/></svg><span data-i18n="applyAll">Copiar a todos</span></button>
-            <button type="button" id="pDel" class="btn sm ghost danger" data-i18n-title="remove" data-i18n-aria="remove"><svg class="ic"><use href="#i-trash"/></svg></button>
-          </div>
-          <p class="muted small" id="pInfo"></p>
-        </form>
-      </section>
+            <label class="field"><span class="lab">Fade in (ms)</span><input id="pFadeIn" type="number" min="0" max="5000" step="1"></label>
+            <label class="field"><span class="lab">Fade out (ms)</span><input id="pFadeOut" type="number" min="0" max="5000" step="1"></label>
+            <label class="field check"><span class="lab" data-i18n="rev">Al revés</span><input id="pRev" type="checkbox"></label>
+            <p class="muted small" id="pInfo"></p>
+            <div class="actionsrow">
+              <button type="button" id="pPlay" class="btn"><svg class="ic"><use href="#i-play"/></svg><span data-i18n="pPlay">Escuchar</span></button>
+              <button type="button" id="pApplyAll" class="btn" data-i18n-title="applyAllT"><svg class="ic"><use href="#i-copy"/></svg><span data-i18n="applyAll">Copiar a todos</span></button>
+              <button type="button" id="pDel" class="btn icon danger" data-i18n-title="remove" data-i18n-aria="remove"><svg class="ic"><use href="#i-trash"/></svg></button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   </section>
 </main>
