@@ -120,6 +120,69 @@ export function digRanges({ onsets = [], dur, n, len, mode = 'random', from = 0,
   return starts.map((s) => [s, Math.min(dur, s + L)]).sort((a, b) => a[0] - b[0]);
 }
 
+// --- "Quantum" dig (Randonautica-style anomalies) ---
+
+// Parity of a sample's 24-bit value: mixes every bit, so it still works for 16-bit sources.
+function parity24(x) {
+  let v = Math.round(x * 8388608) & 0xffffff;
+  v ^= v >> 16; v ^= v >> 8; v ^= v >> 4; v ^= v >> 2; v ^= v >> 1;
+  return v & 1;
+}
+
+/** Random bits from physical noise: sample parities, debiased with von Neumann's extractor. */
+export function noiseBits(samples) {
+  const out = [];
+  for (let i = 0; i + 1 < samples.length; i += 2) {
+    const a = parity24(samples[i]), b = parity24(samples[i + 1]);
+    if (a !== b) out.push(a);
+  }
+  return out;
+}
+
+/** n positions in [0, dur), 16 bits each (bits are consumed in order). */
+export function bitsToPoints(bits, n, dur) {
+  const pts = [];
+  for (let i = 0; i < n && (i + 1) * 16 <= bits.length; i++) {
+    let v = 0;
+    for (let j = 0; j < 16; j++) v = (v << 1) | bits[i * 16 + j];
+    pts.push((v / 65536) * dur);
+  }
+  return pts;
+}
+
+/**
+ * Probability anomalies on the timeline: count random points in every window of `len`
+ * and score it against a uniform spread (Poisson z-score). 'attractor' takes the densest
+ * windows, 'void' the emptiest; picks don't overlap each other or `taken`, and starts snap
+ * to a nearby hit. Returns { ranges, z } with z of the strongest anomaly.
+ */
+export function anomalyRanges({ points, dur, n, len, kind = 'attractor', taken = [], onsets = [] }) {
+  const L = Math.min(len, dur), maxStart = Math.max(0, dur - L);
+  if (!points.length || n <= 0 || L <= 0) return { ranges: [], z: 0 };
+  const pts = Float64Array.from(points).sort();
+  const lambda = (pts.length * L) / dur;
+  const lower = (t) => { let lo = 0, hi = pts.length; while (lo < hi) { const m = (lo + hi) >> 1; if (pts[m] < t) lo = m + 1; else hi = m; } return lo; };
+  const G = 800, cands = [];
+  for (let g = 0; g <= G; g++) {
+    const s = (maxStart * g) / G;
+    const c = lower(s + L) - lower(s);
+    cands.push({ s, z: (c - lambda) / Math.sqrt(lambda || 1) });
+  }
+  cands.sort((a, b) => (kind === 'void' ? a.z - b.z : b.z - a.z));
+  const busy = taken.map(([a, b]) => [a, b]), picks = [];
+  for (const c of cands) {
+    if (picks.length >= n) break;
+    if (busy.every(([a, b]) => c.s + L <= a || c.s >= b)) { picks.push(c); busy.push([c.s, c.s + L]); }
+  }
+  const snap = (s) => {
+    let best = s, d = 0.12;
+    for (const o of onsets) if (o <= maxStart && Math.abs(o - s) < d) { d = Math.abs(o - s); best = o; }
+    return best;
+  };
+  const ranges = picks.map((p) => { const s = snap(p.s); return [s, Math.min(dur, s + L)]; }).sort((a, b) => a[0] - b[0]);
+  return { ranges, z: picks.length ? picks[0].z : 0 };
+}
+
 // Output level per slice: peak gain drive (dB) into the limiter, or null to leave it untouched.
 export const LEVELS = { off: null, norm: 0, loud: 6, max: 12 };
 const CEILING = 0.966; // -0.3 dBFS

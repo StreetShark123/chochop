@@ -1,6 +1,6 @@
 import {
   TARGET_RATE, cleanName, uniqueNames,
-  detectOnsets, digRanges, finish, encodeWav, makeZip, fmtTime,
+  detectOnsets, digRanges, noiseBits, bitsToPoints, anomalyRanges, finish, encodeWav, makeZip, fmtTime,
 } from './dsp.js';
 import { t, applyI18n, setLang, onLangChange, getLang } from './i18n.js';
 
@@ -24,7 +24,7 @@ const fmtT = (s) => dec(fmtTime(s));
 const els = {
   file: $('file'), wavewrap: $('wavewrap'), fname: $('fname'), fmeta: $('fmeta'),
   wave: $('wave'), overview: $('overview'), regions: $('regions'), count: $('count'),
-  memtext: $('memtext'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), pStar: $('pStar'), selName: $('selName'), selWave: $('selWave'), clock: $('clock'), toast: $('toast'),
+  memtext: $('memtext'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), qReport: $('qReport'), qStatus: $('qStatus'), qGo: $('qGo'), pStar: $('pStar'), selName: $('selName'), selWave: $('selWave'), clock: $('clock'), toast: $('toast'),
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
   recmenu: $('recmenu'), recbar: $('recbar'), recLabel: $('recLabel'), recTime: $('recTime'),
   recLevel: $('recLevel'), recHint: $('recHint'),
@@ -806,26 +806,204 @@ function markNow() {
 const digMode = () => document.querySelector('input[name=dig]:checked').value;
 let onsetCache = null;
 
-function dig() {
-  if (!state.buffer) return;
+// What a dig needs: how many new slices, their length, the starred ones to keep, the hits.
+function digPlan() {
+  if (!state.buffer) return null;
   const n = clamp(Math.round(+els.digN.value || 8), 1, 64), L = digLen(), dur = state.buffer.duration;
   const kept = state.regions.filter((r) => r.keep);
   const want = n - kept.length;
-  if (want <= 0) { toast(t('allKept', { n: kept.length }), 2500); return; }
+  if (want <= 0) { toast(t('allKept', { n: kept.length }), 2500); return null; }
   if (onsetCache?.buffer !== state.buffer) {
     onsetCache = { buffer: state.buffer, onsets: detectOnsets(state.mono, state.buffer.sampleRate, 5) };
   }
-  const ranges = digRanges({
-    onsets: onsetCache.onsets, dur, n: want, len: L, mode: digMode(),
-    from: state.cursor, taken: kept.map((r) => [r.start, r.end]),
-  });
+  return { want, L, dur, kept, onsets: onsetCache.onsets, taken: kept.map((r) => [r.start, r.end]) };
+}
+
+function placeDig(plan, ranges) {
   const base = defaults();
   stop();
-  state.regions = [...kept];
+  state.regions = [...plan.kept];
   for (const [a, b] of ranges) addRegion(a, b, base);
   state.sel = sorted()[0]?.id ?? null; // so the slice card and pad keys are live right away
   refresh();
-  toast(kept.length ? t('dugKept', { n: ranges.length, k: kept.length }) : t('dug', { n: ranges.length, d: fmtT(L) }), 1600);
+}
+
+function dig() {
+  if (!state.buffer) return;
+  if (digMode() === 'quantum') { openQuantum(); return; }
+  const plan = digPlan();
+  if (!plan) return;
+  const ranges = digRanges({
+    onsets: plan.onsets, dur: plan.dur, n: plan.want, len: plan.L, mode: digMode(), from: state.cursor, taken: plan.taken,
+  });
+  placeDig(plan, ranges);
+  els.qReport.hidden = true;
+  toast(plan.kept.length ? t('dugKept', { n: ranges.length, k: plan.kept.length }) : t('dug', { n: ranges.length, d: fmtT(plan.L) }), 1600);
+}
+
+// ---------- quantum dig ----------
+// Randonautica-style: 1024 random points over the audio, then dig where they cluster
+// (attractor) or thin out (void). The randomness comes from a sigil drawn by hand (the
+// sub-pixel, sub-millisecond jitter of the strokes) or, if chosen, the mic's noise floor.
+const Q_POINTS = 1024, Q_BITS = Q_POINTS * 16, Q_LISTEN_MS = 2000, SIGIL_MIN = 160;
+const sigil = { pts: [], drawing: false, last: null };
+
+const qSource = () => document.querySelector('input[name=qsrc]:checked').value;
+
+function openQuantum() {
+  if (!state.buffer || rec) return;
+  els.qStatus.hidden = true;
+  clearSigil();
+  showQSource();
+  $('quantum').showModal();
+  sizeSigil();
+}
+
+function showQSource() {
+  const mic = qSource() === 'mic';
+  $('qSigilPane').hidden = mic;
+  $('qMicPane').hidden = !mic;
+  els.qGo.disabled = !mic && sigil.pts.length < SIGIL_MIN;
+}
+
+function sizeSigil() {
+  const c = $('sigil'), r = c.getBoundingClientRect();
+  c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
+  redrawSigil();
+}
+
+function clearSigil() {
+  sigil.pts = []; sigil.last = null;
+  redrawSigil();
+  showQSource();
+}
+
+function redrawSigil() {
+  const c = $('sigil'), ctx = c.getContext('2d'), k = colors();
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.lineWidth = 2.5 * dpr; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = k.wave; ctx.shadowColor = k.wave; ctx.shadowBlur = 8 * dpr;
+  ctx.beginPath();
+  for (const p of sigil.pts) {
+    if (p.start) ctx.moveTo(p.x * dpr, p.y * dpr); else ctx.lineTo(p.x * dpr, p.y * dpr);
+  }
+  ctx.stroke();
+  $('sigilFill').style.width = Math.min(100, (sigil.pts.length / SIGIL_MIN) * 100) + '%';
+}
+
+function bindSigil() {
+  const c = $('sigil');
+  const add = (e, start) => {
+    const r = c.getBoundingClientRect();
+    const co = e.getCoalescedEvents?.();
+    for (const ev of (co && co.length ? co : [e])) { // empty on pointerdown and for synthetic events
+      sigil.pts.push({ x: ev.clientX - r.left, y: ev.clientY - r.top, t: ev.timeStamp, p: ev.pressure, start });
+      start = false;
+    }
+    redrawSigil();
+    if (sigil.pts.length >= SIGIL_MIN) els.qGo.disabled = false;
+  };
+  c.addEventListener('pointerdown', (e) => {
+    try { c.setPointerCapture(e.pointerId); } catch {}
+    sigil.drawing = true; add(e, true);
+  });
+  c.addEventListener('pointermove', (e) => { if (sigil.drawing) add(e, false); });
+  const up = () => { sigil.drawing = false; };
+  c.addEventListener('pointerup', up);
+  c.addEventListener('pointercancel', up);
+  $('sigilClear').addEventListener('click', clearSigil);
+  document.querySelectorAll('input[name=qsrc]').forEach((el) => el.addEventListener('change', showQSource));
+}
+
+// Record the mic's noise floor for `ms` and return the raw samples (mono).
+async function captureNoise(ms) {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { ...RAW, channelCount: 1 } });
+  const ctx = audio();
+  await ctx.resume();
+  recWorklet ||= ctx.audioWorklet.addModule('rec-worklet.js');
+  await recWorklet;
+  const src = ctx.createMediaStreamSource(stream);
+  const node = new AudioWorkletNode(ctx, 'rec', { channelCount: 1, channelCountMode: 'explicit' });
+  const mute = ctx.createGain();
+  mute.gain.value = 0;
+  src.connect(node).connect(mute).connect(ctx.destination);
+  const chunks = [], need = (ctx.sampleRate * ms) / 1000;
+  let frames = 0;
+  await new Promise((done) => {
+    node.port.onmessage = (e) => {
+      if (e.data === 'done') return;
+      chunks.push(e.data[0]); frames += e.data[0].length;
+      if (frames >= need) done();
+    };
+    setTimeout(done, ms + 1500);
+  });
+  stream.getTracks().forEach((tr) => tr.stop());
+  src.disconnect(); node.disconnect(); mute.disconnect();
+  const out = new Float32Array(frames);
+  let o = 0;
+  for (const c of chunks) { out.set(c, o); o += c.length; }
+  return out;
+}
+
+// Stretch a seed into n bits with SHA-256 in counter mode.
+async function expandBits(seed, n) {
+  const bits = [];
+  for (let ctr = 0; bits.length < n; ctr++) {
+    const block = new Uint8Array(seed.length + 4);
+    block.set(seed); new DataView(block.buffer).setUint32(seed.length, ctr);
+    const h = new Uint8Array(await crypto.subtle.digest('SHA-256', block));
+    for (let i = 0; i < 256 && bits.length < n; i++) bits.push((h[i >> 3] >> (i & 7)) & 1);
+  }
+  return bits;
+}
+
+async function collapse() {
+  const plan = digPlan();
+  if (!plan) { $('quantum').close(); return; }
+  const kind = document.querySelector('input[name=qkind]:checked').value;
+  const intent = $('qIntent').value.trim();
+  const enc = new TextEncoder();
+  let bits, src;
+  els.qGo.disabled = true;
+  if (qSource() === 'mic') {
+    let raw = [];
+    els.qStatus.hidden = false;
+    try { raw = noiseBits(await captureNoise(Q_LISTEN_MS)); } catch (e) {
+      if (e.name !== 'NotAllowedError') console.error(e);
+      toast(t('qNoMic'), 3000);
+    }
+    els.qStatus.hidden = true;
+    src = raw.length >= Q_BITS ? 'qSrcMic' : raw.length ? 'qSrcMixed' : 'qSrcSys';
+    if (raw.length < Q_BITS) { // too quiet a mic (or no access): top up with system randomness
+      const extra = crypto.getRandomValues(new Uint8Array(Math.ceil((Q_BITS - raw.length) / 8)));
+      for (let i = 0; raw.length < Q_BITS; i++) raw.push((extra[i >> 3] >> (i & 7)) & 1);
+    }
+    bits = raw.slice(0, Q_BITS);
+    if (intent) { // fold the intention in without hiding the noise
+      const h = await expandBits(enc.encode(intent), Q_BITS);
+      bits = bits.map((b, i) => b ^ h[i]);
+    }
+  } else {
+    // Every stroke sample (x, y, time, pressure) plus the intention, condensed into a seed.
+    const raw = new Float64Array(sigil.pts.length * 4);
+    sigil.pts.forEach((p, i) => raw.set([p.x, p.y, p.t, p.p], i * 4));
+    const it = enc.encode(intent);
+    const seedIn = new Uint8Array(raw.byteLength + it.length);
+    seedIn.set(new Uint8Array(raw.buffer)); seedIn.set(it, raw.byteLength);
+    bits = await expandBits(new Uint8Array(await crypto.subtle.digest('SHA-256', seedIn)), Q_BITS);
+    src = 'qSrcSigil';
+  }
+  const points = bitsToPoints(bits, Q_POINTS, plan.dur);
+  const { ranges, z } = anomalyRanges({ points, dur: plan.dur, n: plan.want, len: plan.L, kind, taken: plan.taken, onsets: plan.onsets });
+  $('quantum').close();
+  placeDig(plan, ranges);
+  const report = t('qReport', {
+    kind: t(kind === 'void' ? 'qVoidL' : 'qAttrL'), z: dec(z.toFixed(2)), src: t(src),
+    intent: intent ? t('qIntentFmt', { t: intent }) : '',
+  });
+  els.qReport.textContent = `⚛ ${report}`;
+  els.qReport.hidden = false;
+  toast(report, 3500);
 }
 
 // ---------- export ----------
@@ -1047,6 +1225,10 @@ function bindGlobal() {
   els.seqRand.addEventListener('click', () => playSeq('rand'));
   $('stop').addEventListener('click', () => { stop(); draw(); });
   $('dig').addEventListener('click', dig);
+  els.qGo.addEventListener('click', collapse);
+  $('qCancel').addEventListener('click', () => $('quantum').close());
+  $('quantum').addEventListener('click', (e) => { if (e.target === e.currentTarget && els.qStatus.hidden) e.currentTarget.close(); });
+  bindSigil();
   $('clear').addEventListener('click', () => {
     if (state.regions.length && confirm(t('clearConfirm'))) { state.regions = []; state.sel = null; refresh(); }
   });

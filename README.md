@@ -19,6 +19,7 @@ Ask for something like **“8 slices of 2 s”** and hit **Dig**. Choose how to 
 - **random** — random spots, each starting on a detected hit, without overlapping.
 - **spread** — evenly spread across the whole audio, snapped to the nearest hit.
 - **in a row** — back to back from the cursor (click the waveform to place it).
+- **quantum** — a Randonautica-style ritual. chop chop scatters 1024 random points over the audio and digs where they form *probability anomalies*: **attractors** (points piling up more than chance allows) or **voids** (points missing), scored with a Poisson z-score that's shown afterwards (e.g. “Attractor · z = 2.63”). The randomness comes from a **sigil you draw** with mouse or finger — the sub-pixel, sub-millisecond jitter of your strokes, hashed with SHA-256 together with an optional *intention* — or, if you choose it, from 2 s of your **mic's background noise** (the device's thermal noise; nothing is recorded or kept). It's physical randomness, not a certified quantum source, and it never leaves your browser.
 
 Star ★ the slices you like and dig again: starred slices stay, the rest get replaced. Changing the seconds resizes every unstarred slice on the spot.
 
