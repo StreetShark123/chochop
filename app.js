@@ -24,7 +24,7 @@ const fmtT = (s) => dec(fmtTime(s));
 const els = {
   file: $('file'), wavewrap: $('wavewrap'), fname: $('fname'), fmeta: $('fmeta'),
   wave: $('wave'), overview: $('overview'), regions: $('regions'), count: $('count'),
-  memtext: $('memtext'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), qReport: $('qReport'), qGo: $('qGo'), pStar: $('pStar'), selName: $('selName'), selWave: $('selWave'), clock: $('clock'), toast: $('toast'),
+  memtext: $('memtext'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), qGo: $('qGo'), pStar: $('pStar'), selName: $('selName'), selWave: $('selWave'), clock: $('clock'), toast: $('toast'),
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
   recmenu: $('recmenu'), recbar: $('recbar'), recLabel: $('recLabel'), recTime: $('recTime'),
   recLevel: $('recLevel'), recHint: $('recHint'),
@@ -837,14 +837,13 @@ function dig() {
     onsets: plan.onsets, dur: plan.dur, n: plan.want, len: plan.L, mode: digMode(), from: state.cursor, taken: plan.taken,
   });
   placeDig(plan, ranges);
-  els.qReport.hidden = true;
   toast(plan.kept.length ? t('dugKept', { n: ranges.length, k: plan.kept.length }) : t('dug', { n: ranges.length, d: fmtT(plan.L) }), 1600);
 }
 
-// ---------- quantum dig ----------
-// A playful, Randonautica-style ritual: a sigil drawn by hand seeds 1024 random points over
-// the audio, and Dig takes the windows where they cluster most (attractors). The randomness is
-// the sub-pixel, sub-millisecond jitter of the strokes, hashed with the optional intention.
+// ---------- sigil dig ----------
+// A playful ritual: a sigil drawn by hand seeds 1024 random points over the audio, and Dig
+// takes the windows where they cluster most. The randomness is the sub-pixel, sub-millisecond
+// jitter of the strokes, hashed with SHA-256.
 const Q_POINTS = 1024, Q_BITS = Q_POINTS * 16, SIGIL_MIN = 160;
 const sigil = { pts: [], drawing: false };
 
@@ -912,23 +911,16 @@ async function expandBits(seed, n) {
 async function collapse() {
   const plan = digPlan();
   if (!plan) { $('quantum').close(); return; }
-  const intent = $('qIntent').value.trim();
   els.qGo.disabled = true;
-  // Every stroke sample (x, y, time, pressure) plus the intention, condensed into a seed.
+  // Every stroke sample (x, y, time, pressure), condensed into a seed.
   const raw = new Float64Array(sigil.pts.length * 4);
   sigil.pts.forEach((p, i) => raw.set([p.x, p.y, p.t, p.p], i * 4));
-  const it = new TextEncoder().encode(intent);
-  const seedIn = new Uint8Array(raw.byteLength + it.length);
-  seedIn.set(new Uint8Array(raw.buffer)); seedIn.set(it, raw.byteLength);
-  const bits = await expandBits(new Uint8Array(await crypto.subtle.digest('SHA-256', seedIn)), Q_BITS);
+  const bits = await expandBits(new Uint8Array(await crypto.subtle.digest('SHA-256', raw)), Q_BITS);
   const points = bitsToPoints(bits, Q_POINTS, plan.dur);
-  const { ranges, z } = anomalyRanges({ points, dur: plan.dur, n: plan.want, len: plan.L, taken: plan.taken, onsets: plan.onsets });
+  const { ranges } = anomalyRanges({ points, dur: plan.dur, n: plan.want, len: plan.L, taken: plan.taken, onsets: plan.onsets });
   $('quantum').close();
   placeDig(plan, ranges);
-  const report = t('qReport', { z: dec(z.toFixed(2)), intent: intent ? t('qIntentFmt', { t: intent }) : '' });
-  els.qReport.textContent = `⚛ ${report}`;
-  els.qReport.hidden = false;
-  toast(report, 3500);
+  toast(t('qDone', { n: ranges.length }), 2500);
 }
 
 // ---------- export ----------

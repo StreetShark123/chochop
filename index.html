@@ -119,11 +119,10 @@
           <label data-i18n-title="mRandomT"><input type="radio" name="dig" value="random" checked><span data-i18n="mRandom">al azar</span></label>
           <label data-i18n-title="mSpreadT"><input type="radio" name="dig" value="spread"><span data-i18n="mSpread">repartidos</span></label>
           <label data-i18n-title="mRowT"><input type="radio" name="dig" value="row"><span data-i18n="mRow">seguidos</span></label>
-          <label data-i18n-title="mQuantumT"><input type="radio" name="dig" value="quantum"><span><svg class="ic"><use href="#i-atom"/></svg><span data-i18n="mQuantum">cuántico</span></span></label>
+          <label data-i18n-title="mQuantumT"><input type="radio" name="dig" value="quantum"><span><svg class="ic"><use href="#i-atom"/></svg><span data-i18n="mQuantum">símbolo</span></span></label>
         </div>
         <button id="dig" class="btn primary"><svg class="ic"><use href="#i-dig"/></svg><span>Dig</span></button>
         <span id="digHint" class="dighint muted" data-i18n="digHint"></span>
-        <span id="qReport" class="dighint qreport" hidden></span>
       </div>
     </div>
 
@@ -257,9 +256,8 @@
   </div>
 </dialog>
 <dialog id="quantum" class="howto qdialog" aria-labelledby="qTitle">
-  <h2 id="qTitle"><svg class="ic"><use href="#i-atom"/></svg> <span data-i18n="qTitle">Dig cuántico</span></h2>
+  <h2 id="qTitle"><svg class="ic"><use href="#i-atom"/></svg> <span data-i18n="qTitle">Tu símbolo</span></h2>
   <p data-i18n="qIntro"></p>
-  <label class="field qintent"><span class="lab" data-i18n="qIntent">Intención</span><input id="qIntent" maxlength="60" autocomplete="off" data-i18n-ph="qIntentPh"></label>
   <div class="sigilpane">
     <canvas id="sigil" data-i18n-aria="qSigilHint"></canvas>
     <div class="sigilfoot">
@@ -271,7 +269,7 @@
   <p class="muted small" data-i18n="qNote"></p>
   <div class="howfoot">
     <button type="button" id="qCancel" class="btn"><span data-i18n="cancel">Cancelar</span></button>
-    <button type="button" id="qGo" class="btn primary"><svg class="ic"><use href="#i-atom"/></svg><span data-i18n="qGo">Colapsar</span></button>
+    <button type="button" id="qGo" class="btn primary"><svg class="ic"><use href="#i-atom"/></svg><span data-i18n="qGo">Leer</span></button>
   </div>
 </dialog>
 <div id="toast" class="toast" hidden></div>

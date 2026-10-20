@@ -19,7 +19,7 @@ Ask for something like **“8 slices of 2 s”** and hit **Dig**. Choose how to 
 - **random** — random spots, each starting on a detected hit, without overlapping.
 - **spread** — evenly spread across the whole audio, snapped to the nearest hit.
 - **in a row** — back to back from the cursor (click the waveform to place it).
-- **quantum** — a playful, Randonautica-style ritual. You **draw a sigil** with mouse or finger (and, if you like, type an *intention*); the sub-pixel, sub-millisecond jitter of your strokes is hashed with SHA-256 into a seed that scatters 1024 random points over the audio. Dig takes the **attractors** — the windows where points pile up more than chance allows — and shows how unusual the strongest one was as a Poisson z-score (e.g. “Attractor · z = 2.63”). Nothing is kept or sent.
+- **sigil** — a playful ritual: **draw a symbol** with mouse or finger and let it choose. The sub-pixel, sub-millisecond jitter of your strokes is hashed (SHA-256) into a seed that scatters 1024 random points over the audio; Dig takes the windows where they pile up most. Nothing is kept or sent.
 
 Star ★ the slices you like and dig again: starred slices stay, the rest get replaced. Changing the seconds resizes every unstarred slice on the spot.
 
