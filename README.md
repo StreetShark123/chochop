@@ -37,7 +37,7 @@ Give the pack a name and hit **Download ZIP**. You get 16-bit / 44.1 kHz WAV fil
 
 Choose **8, 12 or 16 slots per bank** above the slot grid to match your sampler (for example 8 for a Bastl Wave Bard, 12 for a pad group on a 12-pad sampler, 16 for a 4×4 pad grid). The pack name also seeds the sample names (`RAIN01`, `RAIN02`…); slices you rename by hand keep their names.
 
-A meter shows the total length of your slices. The bar tops out at 89 s, which is what a Bastl Wave Bard holds in mono — handy as a reference for small samplers.
+The transport bar shows the total length of your slices.
 
 ## Getting audio in
 

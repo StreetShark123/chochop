@@ -208,14 +208,7 @@ input[type=checkbox] { width: 16px; height: 16px; margin: 0; }
   font: 18px/1 var(--pixel); color: var(--edge); letter-spacing: 1px; padding: 8px 12px;
   font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(93, 242, 143, 0.4);
 }
-.meter { margin-left: auto; display: flex; align-items: center; gap: 10px; font: 11px var(--pixel); text-transform: uppercase; color: var(--muted); }
-.meterbar { width: 140px; height: 12px; padding: 2px; box-shadow: inset 0 0 0 2px var(--edge-dim); }
-#memfill {
-  height: 100%; width: 0; transition: width .15s;
-  background: repeating-linear-gradient(90deg, var(--edge) 0 6px, transparent 6px 9px);
-}
-#memfill.over { background: repeating-linear-gradient(90deg, var(--danger) 0 6px, transparent 6px 9px); }
-#memtext.over { color: var(--danger); }
+.meter { margin-left: auto; font: 11px var(--pixel); text-transform: uppercase; color: var(--muted); }
 
 /* ---------- dig ---------- */
 .dig { display: flex; flex-wrap: wrap; gap: 12px 14px; align-items: center; }

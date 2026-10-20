@@ -1,5 +1,5 @@
 import {
-  TARGET_RATE, BUDGET_SAMPLES, regionCost, cleanName, uniqueNames,
+  TARGET_RATE, cleanName, uniqueNames,
   detectOnsets, digRanges, finish, encodeWav, makeZip, fmtTime,
 } from './dsp.js';
 import { t, applyI18n, setLang, onLangChange, getLang } from './i18n.js';
@@ -24,7 +24,7 @@ const fmtT = (s) => dec(fmtTime(s));
 const els = {
   file: $('file'), wavewrap: $('wavewrap'), fname: $('fname'), fmeta: $('fmeta'),
   wave: $('wave'), overview: $('overview'), regions: $('regions'), count: $('count'),
-  memtext: $('memtext'), memfill: $('memfill'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), pStar: $('pStar'), selName: $('selName'), selWave: $('selWave'), clock: $('clock'), toast: $('toast'),
+  memtext: $('memtext'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), pStar: $('pStar'), selName: $('selName'), selWave: $('selWave'), clock: $('clock'), toast: $('toast'),
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
   recmenu: $('recmenu'), recbar: $('recbar'), recLabel: $('recLabel'), recTime: $('recTime'),
   recLevel: $('recLevel'), recHint: $('recHint'),
@@ -397,10 +397,28 @@ const activeBank = () => {
 
 // Play a slice like a pad: select it, flash its slot, retrigger from the start.
 function hit(r) {
-  if (state.sel !== r.id) select(r.id);
+  if (state.sel !== r.id) {
+    const bank = activeBank();
+    state.sel = r.id;
+    if (activeBank() === bank) selectLight(); else refresh(); // key labels move with the bank
+  }
   playRegion(r);
   const li = els.regions.querySelector(`li[data-id="${r.id}"]`);
   if (li) { li.classList.remove('hit'); void li.offsetWidth; li.classList.add('hit'); }
+}
+
+// Cheap selection change for fast pad playing: restyle the two affected slots only.
+function selectLight() {
+  const k = colors();
+  for (const li of els.regions.querySelectorAll('li.slot[data-id]')) {
+    const on = +li.dataset.id === state.sel;
+    if (li.classList.contains('sel') === on) continue;
+    li.classList.toggle('sel', on);
+    const r = state.regions.find((x) => x.id === +li.dataset.id);
+    if (r) paintSlice(li.querySelector('canvas'), r, on ? k.accent : k.wave);
+  }
+  renderInspector();
+  draw();
 }
 
 function setBankSize(n) {
@@ -420,17 +438,13 @@ function paintSlice(c, r, color) {
 }
 
 function renderMeter() {
-  const used = state.regions.reduce((a, r) => a + regionCost(r), 0);
-  const pct = used / BUDGET_SAMPLES;
-  els.memfill.style.width = Math.min(100, pct * 100) + '%';
-  els.memfill.classList.toggle('over', pct > 1);
-  els.memtext.textContent = `Total ${dec((used / TARGET_RATE).toFixed(1))} s${pct > 1 ? t('memOver') : ''}`;
+  const total = state.regions.reduce((a, r) => a + (r.end - r.start) / r.speed, 0);
+  els.memtext.textContent = `Total ${dec(total.toFixed(1))} s`;
   const n = state.regions.length;
   const nb = Math.ceil(n / state.bankSize);
   els.exportInfo.textContent = n
     ? t('exportInfo', { n, slices: t('nslice', { n }), b: nb, banks: t('bank', { n: nb }) })
     : t('exportEmpty');
-  els.memtext.classList.toggle('over', pct > 1);
 }
 
 const P = {
@@ -464,7 +478,7 @@ function renderInspector() {
   P.lvl.value = r.lvl;
   P.rev.checked = r.reverse;
   const len = (r.end - r.start) / r.speed;
-  els.pInfo.textContent = t('pInfo', { d: fmtT(len), m: dec((regionCost(r) / TARGET_RATE).toFixed(2)) });
+  els.pInfo.textContent = t('pInfo', { d: fmtT(len) });
 }
 
 function bindInspector() {
@@ -808,8 +822,8 @@ function dig() {
   const base = defaults();
   stop();
   state.regions = [...kept];
-  state.sel = null;
   for (const [a, b] of ranges) addRegion(a, b, base);
+  state.sel = sorted()[0]?.id ?? null; // so the slice card and pad keys are live right away
   refresh();
   toast(kept.length ? t('dugKept', { n: ranges.length, k: kept.length }) : t('dug', { n: ranges.length, d: fmtT(L) }), 1600);
 }

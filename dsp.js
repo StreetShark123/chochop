@@ -1,16 +1,6 @@
 // Pure helpers: no DOM, no Web Audio. Testable in Node.
 
 export const TARGET_RATE = 44100;
-// Reference budget (a Bastl Wave Bard's sample memory): 7.5 MiB of 16-bit samples ≈ 89 s mono at 44.1 kHz.
-export const BUDGET_SAMPLES = Math.floor((7.5 * 1024 * 1024) / 2);
-export const BANK_SIZE = 8;
-
-/** Samples a region takes once exported (counted against BUDGET_SAMPLES). */
-export function regionCost(r) {
-  const dur = Math.max(0, r.end - r.start) / r.speed;
-  return Math.ceil(dur * TARGET_RATE) * (r.mono ? 1 : 2);
-}
-
 /** Make a sampler-safe name: [A-Z0-9_-], max 8 chars. */
 export function cleanName(s) {
   const n = String(s || '')
