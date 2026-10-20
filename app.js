@@ -1,5 +1,5 @@
 import {
-  TARGET_RATE, BUDGET_SAMPLES, BANK_SIZE, regionCost, cleanName, uniqueNames,
+  TARGET_RATE, BUDGET_SAMPLES, regionCost, cleanName, uniqueNames,
   detectOnsets, digRanges, finish, encodeWav, makeZip, fmtTime,
 } from './dsp.js';
 import { t, applyI18n, setLang, onLangChange, getLang } from './i18n.js';
@@ -43,7 +43,14 @@ const state = {
   cursor: 0,
   nextId: 1,
   bufId: 0,          // bumps on every new buffer; keys the cached waveform layers
+  bankSize: 8,       // slots per bank (8 / 12 / 16); also the ZIP folder size
 };
+
+// Pads: slots of the active bank map to a 4×4 block of physical keys.
+const PAD_CODES = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyW', 'KeyE', 'KeyR',
+  'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyZ', 'KeyX', 'KeyC', 'KeyV'];
+const PAD_LABELS = '1234QWERASDFZXCV';
+const BANK_KEY = 'chochop.bank';
 
 let actx = null;
 let playing = null; // {src, t0, from, to, rate, reverse}
@@ -86,7 +93,7 @@ function setBuffer(buf, name) {
 function setReady(on) {
   document.body.classList.toggle('noaudio', !on);
   document.querySelectorAll('#editor button, #editor input, #editor select').forEach((el) => {
-    if (el.id !== 'export') el.disabled = !on;
+    if (el.id !== 'export' && el.name !== 'bank') el.disabled = !on;
   });
 }
 
@@ -307,6 +314,7 @@ function drawOverview() {
 // ---------- list, meter, inspector ----------
 function refresh() {
   for (const id of rendered.keys()) if (!state.regions.some((r) => r.id === id)) rendered.delete(id);
+  warmSoon();
   renderList();
   renderMeter();
   renderInspector();
@@ -316,9 +324,11 @@ function refresh() {
 
 function renderList() {
   const list = sorted();
-  const nb = Math.ceil(list.length / BANK_SIZE);
+  const nb = Math.ceil(list.length / state.bankSize);
   els.count.textContent = list.length ? t('count', { n: list.length, b: nb, banks: t('bank', { n: nb }) }) : '';
   const refocus = els.regions.contains(document.activeElement); // keep keyboard focus across re-renders
+  const bs = state.bankSize, active = activeBank();
+  els.regions.dataset.bank = bs;
   els.regions.innerHTML = '';
   if (!list.length) {
     const li = document.createElement('li');
@@ -339,7 +349,7 @@ function renderList() {
     thumb.className = 'thumb';
     const idx = document.createElement('span');
     idx.className = 'idx';
-    idx.textContent = `${Math.floor(i / BANK_SIZE) + 1}·${(i % BANK_SIZE) + 1}`;
+    idx.textContent = `${Math.floor(i / state.bankSize) + 1}·${(i % state.bankSize) + 1}`;
     const nm = document.createElement('span');
     nm.className = 'nm';
     nm.textContent = r.name;
@@ -347,6 +357,9 @@ function renderList() {
     meta.className = 'meta';
     meta.textContent = [fmtT((r.end - r.start) / r.speed), !r.mono && 'ST', r.reverse && 'REV', r.speed !== 1 && dec(`×${r.speed}`)]
       .filter(Boolean).join(' · ');
+    const key = document.createElement('span');
+    key.className = 'key';
+    if (Math.floor(i / bs) === active) key.textContent = PAD_LABELS[i % bs];
     const star = document.createElement('button');
     star.type = 'button';
     star.className = 'iconbtn star' + (r.keep ? ' on' : '');
@@ -355,21 +368,16 @@ function renderList() {
     star.setAttribute('aria-pressed', String(!!r.keep));
     star.append(icon(r.keep ? 'star-f' : 'star'));
     star.addEventListener('click', (e) => { e.stopPropagation(); toggleKeep(r); });
-    const play = document.createElement('button');
-    play.type = 'button';
-    play.className = 'iconbtn play';
-    play.title = t('listen');
-    play.setAttribute('aria-label', `${t('listen')} ${r.name}`);
-    play.append(icon('play'));
-    play.addEventListener('click', (e) => { e.stopPropagation(); select(r.id); playRegion(r); });
-    li.append(thumb, idx, star, play, nm, meta);
-    li.addEventListener('click', () => { select(r.id); reveal(r); });
-    li.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === li) { select(r.id); reveal(r); } });
+    li.setAttribute('aria-label', `${t('listen')} ${r.name}`);
+    li.append(thumb, idx, key, star, nm, meta);
+    // Slots are pads: pressing one plays it straight away (on press, not release).
+    li.addEventListener('pointerdown', (e) => { if (e.button === 0 && !e.target.closest('button')) hit(r); });
+    li.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === li) hit(r); });
     els.regions.append(li);
     thumbs.push([thumb, r]);
   });
   // Free slots up to the end of the last bank, so bank capacity is visible at a glance.
-  for (let i = list.length; i < Math.max(1, nb) * BANK_SIZE; i++) {
+  for (let i = list.length; i < Math.max(1, nb) * state.bankSize; i++) {
     const li = document.createElement('li');
     li.className = 'slot free';
     li.setAttribute('aria-hidden', 'true');
@@ -380,6 +388,28 @@ function renderList() {
     for (const [c, r] of thumbs) paintSlice(c, r, r.id === state.sel ? k.accent : k.wave);
   }
   if (refocus) els.regions.querySelector('li.sel')?.focus();
+}
+
+const activeBank = () => {
+  const i = sorted().findIndex((r) => r.id === state.sel);
+  return i < 0 ? 0 : Math.floor(i / state.bankSize);
+};
+
+// Play a slice like a pad: select it, flash its slot, retrigger from the start.
+function hit(r) {
+  if (state.sel !== r.id) select(r.id);
+  playRegion(r);
+  const li = els.regions.querySelector(`li[data-id="${r.id}"]`);
+  if (li) { li.classList.remove('hit'); void li.offsetWidth; li.classList.add('hit'); }
+}
+
+function setBankSize(n) {
+  const old = state.bankSize;
+  state.bankSize = [8, 12, 16].includes(n) ? n : 8;
+  try { localStorage.setItem(BANK_KEY, String(state.bankSize)); } catch {}
+  document.querySelector(`input[name=bank][value="${state.bankSize}"]`).checked = true;
+  if (+els.digN.value === old) els.digN.value = state.bankSize; // keep "one bank" digs in step
+  refresh();
 }
 
 // Draw one slice's waveform into a small canvas sized to its box.
@@ -396,7 +426,7 @@ function renderMeter() {
   els.memfill.classList.toggle('over', pct > 1);
   els.memtext.textContent = `Total ${dec((used / TARGET_RATE).toFixed(1))} s${pct > 1 ? t('memOver') : ''}`;
   const n = state.regions.length;
-  const nb = Math.ceil(n / BANK_SIZE);
+  const nb = Math.ceil(n / state.bankSize);
   els.exportInfo.textContent = n
     ? t('exportInfo', { n, slices: t('nslice', { n }), b: nb, banks: t('bank', { n: nb }) })
     : t('exportEmpty');
@@ -637,6 +667,18 @@ async function renderedBuffer(r) {
 // Every stop() starts a new generation, so playback that was still preparing
 // (rendering or resuming the context) when the user stopped never starts.
 let playGen = 0;
+// Render slices in the background after edits, so pads respond without a delay.
+let warmTimer = 0;
+function warmSoon() {
+  clearTimeout(warmTimer);
+  warmTimer = setTimeout(async () => {
+    for (const r of sorted()) {
+      if (!state.regions.includes(r)) continue;
+      try { await renderedBuffer(r); } catch { return; }
+    }
+  }, 250);
+}
+
 function stop() {
   playGen++;
   if (playing) { try { playing.src.stop(); } catch {} playing = null; }
@@ -784,7 +826,7 @@ async function exportZip() {
       toast(t('processing', { i: i + 1, n: list.length }));
       const b = await renderedBuffer(list[i]);
       const chans = Array.from({ length: b.numberOfChannels }, (_, c) => b.getChannelData(c));
-      const bank = Math.floor(i / BANK_SIZE) + 1;
+      const bank = Math.floor(i / state.bankSize) + 1;
       files.push({ name: `${packSlug()}/${t('folderBank')}${bank}/${names[i]}.wav`, data: encodeWav(chans) });
     }
     const blob = new Blob([makeZip(files)], { type: 'application/zip' });
@@ -795,7 +837,7 @@ async function exportZip() {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    const nb = Math.ceil(files.length / BANK_SIZE);
+    const nb = Math.ceil(files.length / state.bankSize);
     toast(t('zipReady', { n: files.length, b: nb, banks: t('bank', { n: nb }) }), 2500);
   } catch (e) {
     console.error(e);
@@ -982,6 +1024,11 @@ function bindGlobal() {
     if (state.regions.length && confirm(t('clearConfirm'))) { state.regions = []; state.sel = null; refresh(); }
   });
   els.digLen.addEventListener('input', applyDigLen);
+  document.querySelectorAll('input[name=bank]').forEach((el) => el.addEventListener('change', () => setBankSize(+el.value)));
+  // Touch presses only count as a user gesture on release, so resume audio there too.
+  const unlock = () => { if (actx && actx.state === 'suspended') actx.resume(); };
+  document.addEventListener('pointerup', unlock);
+  document.addEventListener('touchend', unlock);
   els.exportBtn.addEventListener('click', exportZip);
 
   document.addEventListener('keydown', (e) => {
@@ -998,10 +1045,14 @@ function bindGlobal() {
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.sel) {
       e.preventDefault();
       deleteRegion(state.sel);
+    } else if (e.code === 'KeyD' && e.shiftKey) {
+      dig();
+    } else if (PAD_CODES.indexOf(e.code) >= 0 && PAD_CODES.indexOf(e.code) < state.bankSize && !e.shiftKey) {
+      if (e.repeat) return;
+      const r = sorted()[activeBank() * state.bankSize + PAD_CODES.indexOf(e.code)];
+      if (r) { e.preventDefault(); hit(r); }
     } else if (e.key === 'k' || e.key === 'K') {
       const r = getSel(); if (r) toggleKeep(r);
-    } else if (e.key === 'd' || e.key === 'D') {
-      dig();
     } else if (e.key === 'Escape') {
       state.sel = null; refresh();
     } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
@@ -1051,6 +1102,9 @@ function bindPack() {
 }
 
 bindLang();
+try { const n = +localStorage.getItem(BANK_KEY); if ([8, 12, 16].includes(n)) state.bankSize = n; } catch {}
+document.querySelector(`input[name=bank][value="${state.bankSize}"]`).checked = true;
+els.digN.value = state.bankSize;
 setReady(false);
 refresh();
 bindHowto();

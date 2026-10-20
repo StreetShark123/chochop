@@ -14,7 +14,7 @@ Everything happens in your browser. No uploads, no accounts, no tracking — see
 
 ### 1 · Dig
 
-Ask for something like **“8 slices of 2 s”** and hit **⛏ Dig**. Choose how to dig:
+Ask for something like **“8 slices of 2 s”** and hit **Dig**. Choose how to dig:
 
 - **random** — random spots, each starting on a detected hit, without overlapping.
 - **spread** — evenly spread across the whole audio, snapped to the nearest hit.
@@ -28,11 +28,14 @@ Star ★ the slices you like and dig again: starred slices stay, the rest get re
 - Double-click the waveform to add a slice of the chosen length; drag over an empty area to draw one by hand (hold <kbd>Alt</kbd> to draw on top of another).
 - Per-slice settings: name (8 characters), mono/stereo, speed (×1, ×0.75, ×0.5, ×0.25, tape style), fade in/out, volume and reverse.
 - **Volume** per slice: *Original*, *Normalized* (peak to −0.3 dBFS), *Loud* (default) or *Max*. Loud and Max push the slice into a look-ahead limiter, so quiet tails come up while peaks stay under −0.3 dBFS — closer to the level of commercial sample packs.
-- Listen to one slice, or play them all **in order** or **shuffled**, back to back and looping.
+- **Slots are pads:** tap a slot (finger or mouse) or press its key to hear it instantly. The active bank maps to a 4×4 block of keys — `1 2 3 4` / `Q W E R` / `A S D F` / `Z X C V` — shown on each slot. Slices are pre-rendered in the background so pads respond right away.
+- Listen to the original, or play all slices **in order** or **shuffled**, back to back and looping.
 
 ### 3 · Download
 
-Give the pack a name and hit **⬇ Download ZIP**. You get 16-bit / 44.1 kHz WAV files in folders of 8 (`bank1`, `bank2`… — folder names follow the interface language), each named with up to 8 characters. The pack name also seeds the sample names (`RAIN01`, `RAIN02`…); slices you rename by hand keep their names.
+Give the pack a name and hit **Download ZIP**. You get 16-bit / 44.1 kHz WAV files in one folder per bank (`bank1`, `bank2`… — folder names follow the interface language), each named with up to 8 characters.
+
+Choose **8, 12 or 16 slots per bank** above the slot grid to match your sampler (for example 8 for a Bastl Wave Bard, 12 for a pad group on a 12-pad sampler, 16 for a 4×4 pad grid). The pack name also seeds the sample names (`RAIN01`, `RAIN02`…); slices you rename by hand keep their names.
 
 A meter shows the total length of your slices. The bar tops out at 89 s, which is what a Bastl Wave Bard holds in mono — handy as a reference for small samplers.
 
@@ -48,7 +51,8 @@ A meter shows the total length of your slices. The bar tops out at 89 s, which i
 
 | Key | Action |
 | --- | --- |
-| <kbd>D</kbd> | Dig |
+| <kbd>1</kbd>–<kbd>4</kbd> <kbd>Q</kbd>–<kbd>R</kbd> <kbd>A</kbd>–<kbd>F</kbd> <kbd>Z</kbd>–<kbd>V</kbd> | Play the slots of the active bank (like pads) |
+| <kbd>Shift</kbd> + <kbd>D</kbd> | Dig |
 | <kbd>K</kbd> | Star / unstar the selected slice |
 | <kbd>Space</kbd> | Play / stop |
 | <kbd>Delete</kbd> / <kbd>Backspace</kbd> | Remove the selected slice |
