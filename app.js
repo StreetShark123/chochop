@@ -290,7 +290,7 @@ function draw() {
   }
   // playhead
   const ph = playheadTime();
-  els.clock.textContent = fmtClockFine(ph ?? state.cursor);
+  setClock(fmtClockFine(ph ?? state.cursor));
   if (ph != null) {
     ctx.fillStyle = k.accent;
     ctx.fillRect(tToX(ph), 0, 2 * dpr, h);
@@ -985,6 +985,19 @@ function renderRecLabels() {
   els.recHint.textContent = rec.hint ? t(rec.hint) : '';
 }
 
+// The pixel font isn't monospaced, so each character sits in a fixed-width cell
+// (otherwise the clock changes width as digits change and shoves the buttons).
+function setClock(str) {
+  const c = els.clock;
+  if (c.childElementCount !== str.length) {
+    c.replaceChildren(...[...str].map(() => document.createElement('span')));
+  }
+  [...str].forEach((ch, i) => {
+    const span = c.children[i];
+    if (span.textContent !== ch) { span.textContent = ch; span.className = /\d/.test(ch) ? '' : 'sep'; }
+  });
+}
+
 function fmtClockFine(s) {
   const m = Math.floor(s / 60);
   return `${String(m).padStart(2, '0')}:${(s - m * 60).toFixed(2).padStart(5, '0')}`;
@@ -1115,6 +1128,7 @@ function bindPack() {
   });
 }
 
+setClock('00:00.00');
 bindLang();
 try { const n = +localStorage.getItem(BANK_KEY); if ([8, 12, 16].includes(n)) state.bankSize = n; } catch {}
 document.querySelector(`input[name=bank][value="${state.bankSize}"]`).checked = true;
