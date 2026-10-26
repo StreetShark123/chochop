@@ -34,9 +34,9 @@ Star ★ the slices you like and dig again: starred slices stay, the rest get re
 
 ### 3 · Download
 
-Give the pack a name and hit **Download ZIP**. You get 16-bit / 44.1 kHz WAV files in one folder per bank (`bank1`, `bank2`… — folder names follow the interface language), each named with up to 8 characters.
+Give the pack a name and hit **Download ZIP**. You get a ZIP with one folder named after the pack and the 16-bit / 44.1 kHz WAV files straight inside it, each named with up to 8 characters and numbered in order (`RAIN01`, `RAIN02`…).
 
-Choose **8, 12 or 16 slots per bank** above the slot grid to match your sampler (for example 8 for a Bastl Wave Bard, 12 for a pad group on a 12-pad sampler, 16 for a 4×4 pad grid). The pack name also seeds the sample names (`RAIN01`, `RAIN02`…); slices you rename by hand keep their names.
+Choose **8, 12 or 16 slots per bank** above the slot grid to match your sampler (for example 8 for a Bastl Wave Bard, 12 for a pad group on a 12-pad sampler, 16 for a 4×4 pad grid); it sets how the slots and pad keys are grouped. The pack name also seeds the sample names (`RAIN01`, `RAIN02`…); slices you rename by hand keep their names.
 
 The transport bar shows the total length of your slices.
 
@@ -73,7 +73,7 @@ Made for desktop browsers. Editing, listening and downloading use standard Web A
 ## Example: loading a pack into a Bastl Wave Bard
 
 1. Download the ZIP and unzip it.
-2. Open the [Bastl sample loader](https://apps.bastl-instruments.com/wave-bard-sample-loader/) and drag the WAVs from each folder into a bank.
+2. Open the [Bastl sample loader](https://apps.bastl-instruments.com/wave-bard-sample-loader/) and drag the WAVs into a bank, 8 at a time.
 3. Click “Generate firmware file” and copy the `.uf2` to the Wave Bard in boot mode (hold SHIFT while powering it over USB).
 
 Tip: tune melodic samples to C so the Bard's scales line up.

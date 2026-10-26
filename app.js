@@ -43,7 +43,7 @@ const state = {
   cursor: 0,
   nextId: 1,
   bufId: 0,          // bumps on every new buffer; keys the cached waveform layers
-  bankSize: 8,       // slots per bank (8 / 12 / 16); also the ZIP folder size
+  bankSize: 8,       // slots per bank (8 / 12 / 16)
 };
 
 // Pads: slots of the active bank map to a 4×4 block of physical keys.
@@ -935,8 +935,7 @@ async function exportZip() {
       toast(t('processing', { i: i + 1, n: list.length }));
       const b = await renderedBuffer(list[i]);
       const chans = Array.from({ length: b.numberOfChannels }, (_, c) => b.getChannelData(c));
-      const bank = Math.floor(i / state.bankSize) + 1;
-      files.push({ name: `${packSlug()}/${t('folderBank')}${bank}/${names[i]}.wav`, data: encodeWav(chans) });
+      files.push({ name: `${packSlug()}/${names[i]}.wav`, data: encodeWav(chans) }); // one folder, named after the pack
     }
     const blob = new Blob([makeZip(files)], { type: 'application/zip' });
     const a = document.createElement('a');
