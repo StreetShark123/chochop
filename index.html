@@ -235,6 +235,7 @@
   <p id="recHint" class="rechint"></p>
 </div>
 <dialog id="howto" class="howto" aria-labelledby="howTitle">
+  <div class="dlgbody">
   <h2 id="howTitle"><span class="logo">chop chop</span> <span class="muted">dig · chop · download</span></h2>
   <p data-i18n="howIntro"></p>
   <p class="muted" data-i18n="howStart"></p>
@@ -248,8 +249,10 @@
     <label class="check"><input type="checkbox" id="howNoShow"> <span data-i18n="noShow">No mostrar más</span></label>
     <button type="button" id="howClose" class="btn primary" data-i18n="close">Cerrar</button>
   </div>
+  </div>
 </dialog>
 <dialog id="privacy" class="howto" aria-labelledby="privTitle">
+  <div class="dlgbody">
   <h2 id="privTitle" data-i18n="privacy">Privacidad</h2>
   <p><b data-i18n="priv1"></b></p>
   <ul class="privlist">
@@ -264,8 +267,10 @@
     <span class="muted small">© 2026 StreetShark123 · MIT</span>
     <button type="button" id="privClose" class="btn primary" data-i18n="close">Cerrar</button>
   </div>
+  </div>
 </dialog>
 <dialog id="quantum" class="howto qdialog" aria-labelledby="qTitle">
+  <div class="dlgbody">
   <h2 id="qTitle"><svg class="ic"><use href="#i-atom"/></svg> <span data-i18n="qTitle">Lectura de símbolo</span></h2>
   <p data-i18n="qIntro"></p>
   <div class="sigilpane">
@@ -280,6 +285,7 @@
   <div class="howfoot">
     <button type="button" id="qCancel" class="btn"><span data-i18n="cancel">Cancelar</span></button>
     <button type="button" id="qGo" class="btn primary" hidden><svg class="ic"><use href="#i-atom"/></svg><span data-i18n="qGo">Descifrar</span></button>
+  </div>
   </div>
 </dialog>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

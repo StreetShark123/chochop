@@ -369,9 +369,11 @@ input[type=range]:focus-visible { outline: 2px solid var(--ink); outline-offset:
 /* ---------- dialogs ---------- */
 .howto {
   --fc: var(--edge); --cut: 16px; position: fixed;
-  width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto;
-  padding: 24px 26px; color: var(--ink);
+  width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: hidden;
+  padding: 0; color: var(--ink);
 }
+/* The frame (dialog + ::before fill) stays put; only the body scrolls, so the fill always covers it. */
+.dlgbody { max-height: calc(100dvh - 48px); overflow: auto; padding: 24px 26px; overscroll-behavior: contain; }
 .howto::backdrop { background: rgba(2, 8, 5, 0.75); }
 .howto h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 14px; font: 12px var(--pixel); text-transform: uppercase; color: var(--edge); }
 .howto h2 .logo { font-size: 18px; }
@@ -445,7 +447,7 @@ input[type=range]:focus-visible { outline: 2px solid var(--ink); outline-offset:
 }
 
 /* Touch screens: no keyboard shortcuts in the help or on the slots */
-@media (hover: none) and (pointer: coarse) {
+@media (hover: none) and (pointer: coarse), (max-width: 560px) {
   .kbdhelp, .slot .key { display: none; }
 }
 
