@@ -244,6 +244,12 @@ input[type=range]:focus-visible { outline: 2px solid var(--ink); outline-offset:
 .wavewrap.over .waveempty { background: rgba(93, 242, 143, 0.06); }
 #wave { display: block; width: 100%; height: 220px; cursor: crosshair; touch-action: none; }
 #overview { display: block; width: 100%; height: 34px; border-top: 2px solid var(--line); cursor: pointer; }
+.hud {
+  position: absolute; top: 22px; right: 14px; z-index: 2; pointer-events: none; /* below the slice tags */
+  font: 8px/1 var(--pixel); letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase;
+  padding: 3px 5px; background: rgba(3, 10, 6, 0.75);
+}
+.noaudio .hud { display: none; }
 .tab #fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; }
 
 .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }

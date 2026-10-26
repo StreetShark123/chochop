@@ -22,7 +22,7 @@ function icon(name) {
 const dec = (s) => (getLang() === 'en' ? s : s.replace('.', ','));
 const fmtT = (s) => dec(fmtTime(s));
 const els = {
-  file: $('file'), wavewrap: $('wavewrap'), fname: $('fname'), fmeta: $('fmeta'),
+  file: $('file'), wavewrap: $('wavewrap'), hud: $('hud'), fname: $('fname'), fmeta: $('fmeta'),
   wave: $('wave'), overview: $('overview'), regions: $('regions'), count: $('count'),
   memtext: $('memtext'), exportBtn: $('export'), exportInfo: $('exportInfo'), pack: $('pack'), qGo: $('qGo'), pStar: $('pStar'), selName: $('selName'), selWave: $('selWave'), clock: $('clock'), toast: $('toast'),
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
@@ -89,6 +89,7 @@ function setBuffer(buf, name) {
   setReady(true);
   resize();
   refresh();
+  setTimeout(() => { analyse(); draw(); }, 0); // BPM for the HUD
 }
 
 // One level of undo for anything that replaces audio or slices (load, record, crop, dig,
@@ -327,10 +328,24 @@ function draw() {
     const tw = Math.min(room, ctx.measureText(label).width + 8 * dpr), th = 13 * dpr;
     ctx.fillStyle = isSel ? k.accent : k['region-edge'];
     ctx.fillRect(Math.max(0, x1), 0, tw, th);
+    if (isSel) { // pointer under the tag
+      const tx = Math.max(0, x1) + 6 * dpr;
+      ctx.beginPath(); ctx.moveTo(tx, th); ctx.lineTo(tx + 8 * dpr, th); ctx.lineTo(tx + 4 * dpr, th + 5 * dpr); ctx.fill();
+    }
     ctx.fillStyle = k.bg;
     ctx.fillText(label, Math.max(0, x1) + 4 * dpr, th / 2 + dpr / 2);
   });
   ctx.textBaseline = 'alphabetic';
+  // Time ruler along the bottom edge: majors with labels, four minors in between.
+  const span = end - start, px = w / span;
+  const major = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120].find((s) => s * px >= 80 * dpr) || 300;
+  ctx.fillStyle = k.muted;
+  ctx.font = `${7 * dpr}px Silkscreen, ui-monospace, monospace`;
+  for (let tk = Math.floor(start / (major / 5)) * (major / 5); tk <= end; tk += major / 5) {
+    const x = Math.round((tk - start) * px), isMajor = Math.abs(tk / major - Math.round(tk / major)) < 1e-6;
+    ctx.fillRect(x, h - (isMajor ? 7 : 3) * dpr, dpr, (isMajor ? 7 : 3) * dpr);
+    if (isMajor) ctx.fillText(major < 1 ? dec(tk.toFixed(2)) : fmtClock(tk), x + 3 * dpr, h - 3 * dpr);
+  }
   // cursor
   ctx.fillStyle = k.muted;
   const cx = tToX(state.cursor);
@@ -345,9 +360,16 @@ function draw() {
   const ph = playheadTime();
   setClock(fmtClockFine(ph ?? state.cursor));
   if (ph != null) {
+    const px2 = tToX(ph);
     ctx.fillStyle = k.accent;
-    ctx.fillRect(tToX(ph), 0, 2 * dpr, h);
+    ctx.fillRect(px2, 0, 2 * dpr, h);
+    ctx.beginPath(); // pointer head
+    ctx.moveTo(px2 - 5 * dpr, 0); ctx.lineTo(px2 + 6 * dpr, 0); ctx.lineTo(px2 + dpr, 7 * dpr); ctx.fill();
   }
+  // Telemetry: visible span, zoom and tempo
+  const bpm = onsetCache?.buffer === state.buffer && onsetCache.grid ? ` · ${Math.round(onsetCache.grid.bpm)} BPM` : '';
+  const hud = `${fmtClockFine(start)}–${fmtClockFine(end)} · ×${dec((state.buffer.duration / span).toFixed(1))}${bpm}`;
+  if (els.hud.textContent !== hud) els.hud.textContent = hud;
   drawOverview();
 }
 
@@ -812,6 +834,13 @@ function tick() {
 // ---------- dig ----------
 const digMode = () => document.querySelector('input[name=dig]:checked').value;
 let onsetCache = null;
+// Hits and beat grid, once per buffer (also run right after loading so the HUD can show the BPM).
+function analyse() {
+  if (!state.buffer || onsetCache?.buffer === state.buffer) return onsetCache;
+  const sr = state.buffer.sampleRate;
+  onsetCache = { buffer: state.buffer, onsets: detectOnsets(state.mono, sr, 5), grid: beatGrid(state.mono, sr) };
+  return onsetCache;
+}
 
 // What a dig needs: how many new slices, their length, the starred ones to keep, the hits.
 function digPlan() {
@@ -820,10 +849,7 @@ function digPlan() {
   const kept = state.regions.filter((r) => r.keep);
   const want = n - kept.length;
   if (want <= 0) { toast(t('allKept', { n: kept.length }), 2500); return null; }
-  if (onsetCache?.buffer !== state.buffer) {
-    const sr = state.buffer.sampleRate;
-    onsetCache = { buffer: state.buffer, onsets: detectOnsets(state.mono, sr, 5), grid: beatGrid(state.mono, sr) };
-  }
+  analyse();
   return { want, L, dur, kept, onsets: onsetCache.onsets, grid: onsetCache.grid, taken: kept.map((r) => [r.start, r.end]) };
 }
 
@@ -921,6 +947,45 @@ function bindSigil() {
   $('sigilClear').addEventListener('click', clearSigil);
 }
 
+// Brief "analysis" pass over the sigil: graduated rings orbiting it and the actual signature
+// (the SHA-256 seed, in hex) scrolling over the screen. Skipped with reduced motion.
+function decodeFx(hex) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  const c = $('sigil'), ctx = c.getContext('2d'), k = colors(), t0 = performance.now(), D = 1100;
+  const cx = c.width / 2, cy = c.height / 2, R = Math.min(cx, cy) * 0.9;
+  return new Promise((resolve) => {
+    let over = false;
+    const done = () => { if (!over) { over = true; resolve(); } };
+    setTimeout(done, D + 400); // never hang if frames stop (background tab)
+    const frame = (now) => {
+      if (over) return;
+      const p = Math.min(1, (now - t0) / D);
+      redrawSigil();
+      ctx.save();
+      ctx.shadowBlur = 0; ctx.strokeStyle = k.wave; ctx.fillStyle = k.wave; ctx.lineWidth = 1.5 * dpr;
+      for (let i = 0; i < 3; i++) {
+        const r = R * (0.5 + i * 0.25), dir = i % 2 ? -1 : 1, a0 = dir * p * Math.PI * (2 + i) + i * 1.3;
+        ctx.globalAlpha = 0.85 - i * 0.2;
+        ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + Math.PI * (0.5 + 0.35 * i)); ctx.stroke();
+        for (let j = 0; j < 36; j += i + 1) { // graduation ticks
+          const a = a0 + (j * Math.PI) / 18, l = (j % 9 ? 3 : 7) * dpr;
+          ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+          ctx.lineTo(cx + Math.cos(a) * (r + l), cy + Math.sin(a) * (r + l)); ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 0.55;
+      ctx.font = `${7 * dpr}px Silkscreen, ui-monospace, monospace`;
+      for (let l = 0; l < 4; l++) { // the signature, scrolling
+        const off = Math.floor(p * 48 + l * 11) % hex.length;
+        ctx.fillText((hex.slice(off) + hex.slice(0, off)).slice(0, 40), 10 * dpr, (14 + l * 10) * dpr);
+      }
+      ctx.restore();
+      if (p < 1) requestAnimationFrame(frame); else done();
+    };
+    requestAnimationFrame(frame);
+  });
+}
+
 // Stretch a seed into n bits with SHA-256 in counter mode.
 async function expandBits(seed, n) {
   const bits = [];
@@ -941,7 +1006,10 @@ async function collapse() {
   // Every stroke sample (x, y, time, pressure), condensed into a seed.
   const raw = new Float64Array(sigil.pts.length * 4);
   sigil.pts.forEach((p, i) => raw.set([p.x, p.y, p.t, p.p], i * 4));
-  const bits = await expandBits(new Uint8Array(await crypto.subtle.digest('SHA-256', raw)), Q_BITS);
+  const seed = new Uint8Array(await crypto.subtle.digest('SHA-256', raw));
+  const bits = await expandBits(seed, Q_BITS);
+  $('sigilHint').textContent = t('qDecoding');
+  await decodeFx([...seed].map((b) => b.toString(16).padStart(2, '0')).join('').toUpperCase());
   const points = bitsToPoints(bits, Q_POINTS, plan.dur);
   const { ranges } = anomalyRanges({ points, dur: plan.dur, n: plan.want, len: plan.L, taken: plan.taken, onsets: plan.onsets });
   $('quantum').close();
