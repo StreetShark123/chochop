@@ -966,6 +966,11 @@ async function exportZip() {
 const REC_MAX_S = 300;
 const REC_SILENCE = 0.001; // ≈ -60 dBFS
 const RAW = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+// Mic input gain (dB), adjustable while recording: raw phone mics are quiet without the
+// browser's auto gain, and more gain brings up the room/ambience.
+const MIC_GAIN_KEY = 'chochop.micgain';
+let micGainDb = 12;
+try { const g = localStorage.getItem(MIC_GAIN_KEY); if (g !== null && +g >= 0 && +g <= 36) micGainDb = +g; } catch {}
 let rec = null;
 let recWorklet = null;
 
@@ -1004,11 +1009,13 @@ async function startRec(kind) {
   const ch = kind === 'mic' ? Math.min(2, track.getSettings().channelCount || 1) : 2;
   const src = ctx.createMediaStreamSource(stream);
   const node = new AudioWorkletNode(ctx, 'rec', { channelCount: ch, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+  const pre = ctx.createGain(); // input gain (mic only; unity for tab/system)
+  pre.gain.value = kind === 'mic' ? 10 ** (micGainDb / 20) : 1;
   const mute = ctx.createGain();
   mute.gain.value = 0; // keep the node pulled by the graph without monitoring the input
-  src.connect(node).connect(mute).connect(ctx.destination);
+  src.connect(pre).connect(node).connect(mute).connect(ctx.destination);
 
-  const r = { kind, stream, src, node, mute, ch, sr: ctx.sampleRate, chunks: [], frames: 0, peak: 0, heard: false };
+  const r = { kind, stream, src, pre, node, mute, ch, sr: ctx.sampleRate, chunks: [], frames: 0, peak: 0, heard: false };
   rec = r;
   node.port.onmessage = (e) => {
     if (e.data === 'done') { r.onDone?.(); return; }
@@ -1023,6 +1030,8 @@ async function startRec(kind) {
   stream.getTracks().forEach((t) => t.addEventListener('ended', () => stopRec(true)));
 
   r.hint = { tab: 'recTabHint', system: 'recSysHint' }[kind] || '';
+  $('recGainWrap').hidden = kind !== 'mic';
+  showMicGain();
   renderRecLabels();
   els.recbar.hidden = false;
   r.timer = setInterval(() => {
@@ -1045,7 +1054,7 @@ async function stopRec(keep) {
   clearInterval(r.timer);
   await new Promise((res) => { r.onDone = res; r.node.port.postMessage('flush'); setTimeout(res, 600); });
   r.stream.getTracks().forEach((t) => t.stop());
-  r.src.disconnect(); r.node.disconnect(); r.mute.disconnect();
+  r.src.disconnect(); r.pre.disconnect(); r.node.disconnect(); r.mute.disconnect();
   rec = null;
   els.recbar.hidden = true;
   els.recTime.textContent = '0:00';
@@ -1075,6 +1084,11 @@ async function stopRec(keep) {
   const hhmm = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
   setBuffer(buf, `${{ tab: 'tab', system: 'pc', mic: 'mic' }[r.kind]}-${hhmm}.wav`);
   toast(t('recDone', { d: fmtT(buf.duration) }), 3000, state.buffer && undoSnap ? undoAction() : null);
+}
+
+function showMicGain() {
+  $('recGain').value = micGainDb;
+  $('recGainVal').textContent = `+${micGainDb} dB`;
 }
 
 function renderRecLabels() {
@@ -1119,6 +1133,12 @@ function bindRec() {
   $('recMic').addEventListener('click', () => startRec('mic'));
   $('recStop').addEventListener('click', () => stopRec(true));
   $('recCancel').addEventListener('click', () => stopRec(false));
+  $('recGain').addEventListener('input', (e) => {
+    micGainDb = +e.target.value;
+    showMicGain();
+    if (rec?.pre) rec.pre.gain.setTargetAtTime(10 ** (micGainDb / 20), rec.pre.context.currentTime, 0.02);
+    try { localStorage.setItem(MIC_GAIN_KEY, String(micGainDb)); } catch {}
+  });
   document.addEventListener('click', (e) => { if (!els.recmenu.contains(e.target)) els.recmenu.open = false; });
 }
 

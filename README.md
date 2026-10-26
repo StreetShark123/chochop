@@ -45,7 +45,7 @@ The transport bar shows the total length of your slices.
 - **Open** WAV, MP3, AIFF, OGG, FLAC or M4A — anything your browser can decode — or drop a file onto the page.
 - **● Record**, captured as raw, uncompressed audio with the browser's voice processing (noise suppression, echo cancellation, auto gain) turned off. Leading and trailing silence is trimmed automatically; recordings are capped at 5 minutes.
   - **A browser tab** — whatever plays in another tab (YouTube, SoundCloud, Bandcamp…). Pick the tab and tick “Also share tab audio”. Desktop Chrome/Edge only. Some sites (e.g. Spotify, Netflix) block capture and only give silence; chop chop tells you when that happens.
-  - **The mic** — objects, voices, the street.
+  - **The mic** — objects, voices, the street. A **gain** slider (0 to +36 dB, adjustable while recording) brings up quiet phone mics and more of the room.
   - **This computer** — everything your system plays. Share the entire screen with “Share system audio”. Works in Chrome/Edge on Windows and ChromeOS; on macOS it depends on the macOS and Chrome versions.
 
 ## Keyboard shortcuts
@@ -88,7 +88,7 @@ This is enforced, not just promised:
 - The site is served with a strict **Content-Security-Policy** (see [`vercel.json`](vercel.json)) including `connect-src 'none'`, so the browser refuses any outgoing connection from the page. You can check it in your browser's developer tools.
 - Fonts are self-hosted; the page loads nothing from third parties.
 - `Referrer-Policy: no-referrer`, and a `Permissions-Policy` that only allows the microphone and screen capture for the site itself.
-- The only things stored, in your own browser, are your language and whether to show the help on arrival.
+- The only things stored, in your own browser, are a few preferences: language, whether to show the help on arrival, slots per bank and mic gain.
 
 Like any website, the hosting provider (Vercel) keeps technical request logs (such as IP addresses) for a limited time.
 

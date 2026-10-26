@@ -357,6 +357,10 @@ input[type=checkbox] { width: 16px; height: 16px; margin: 0; }
 .reclevel { flex: 1; min-width: 80px; height: 12px; padding: 2px; box-shadow: inset 0 0 0 2px var(--edge-dim); }
 #recLevel { height: 100%; width: 0; background: repeating-linear-gradient(90deg, var(--edge) 0 6px, transparent 6px 9px); transition: width 80ms linear; }
 #recLevel.hot { background: repeating-linear-gradient(90deg, var(--danger) 0 6px, transparent 6px 9px); }
+.recgain { flex-basis: 100%; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.recgain[hidden] { display: none; }
+.recgain input { flex: 1; min-width: 120px; height: 28px; accent-color: var(--edge); }
+.recgainval { font: 12px var(--pixel); color: var(--edge); min-width: 5.5em; text-align: right; }
 .rechint { flex-basis: 100%; margin: 0; font-size: 12px; color: var(--muted); }
 .rechint:empty { display: none; }
 

@@ -225,6 +225,11 @@
   <span id="recLabel" data-i18n="recording">Grabando</span>
   <span id="recTime" class="rectime">0:00</span>
   <div class="reclevel" aria-hidden="true"><div id="recLevel"></div></div>
+  <label id="recGainWrap" class="recgain" data-i18n-title="recGainT" hidden>
+    <span class="lab" data-i18n="recGain">Ganancia</span>
+    <input id="recGain" type="range" min="0" max="36" step="1" value="12">
+    <span id="recGainVal" class="recgainval">+12 dB</span>
+  </label>
   <button type="button" id="recStop" class="btn sm primary"><svg class="ic"><use href="#i-stop"/></svg><span data-i18n="recStop">Parar y usar</span></button>
   <button type="button" id="recCancel" class="btn sm ghost" data-i18n="cancel">Cancelar</button>
   <p id="recHint" class="rechint"></p>
