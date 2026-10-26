@@ -525,7 +525,7 @@ function renderInspector() {
   els.pStar.hidden = !r;
   els.selName.textContent = r ? r.name : '';
   els.selWave.parentElement.classList.toggle('on', !!r);
-  if (!r) return;
+  if (!r) { const c = els.selWave; c.getContext('2d').clearRect(0, 0, c.width, c.height); return; }
   paintSlice(els.selWave, r, colors().accent);
   els.pStar.classList.toggle('on', !!r.keep);
   els.pStar.title = t(r.keep ? 'starOn' : 'starOff');
@@ -874,6 +874,7 @@ function clearSigil() {
   sigil.pts = []; sigil.t0 = 0; sigil.raf = 0;
   els.qGo.hidden = true;
   $('sigilFill').style.width = '0';
+  $('sigilHint').textContent = t('qSigilHint');
   redrawSigil();
 }
 
@@ -882,7 +883,7 @@ function sigilTimer() {
   const p = Math.min(1, (performance.now() - sigil.t0) / SIGIL_MS);
   $('sigilFill').style.width = p * 100 + '%';
   if (p < 1) sigil.raf = requestAnimationFrame(sigilTimer);
-  else { sigil.raf = 0; els.qGo.hidden = false; }
+  else { sigil.raf = 0; els.qGo.hidden = false; $('sigilHint').textContent = t('qReady'); }
 }
 
 function redrawSigil() {

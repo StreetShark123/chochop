@@ -167,8 +167,7 @@
           <button type="button" id="pStar" class="iconbtn star" hidden><svg class="ic"><use href="#i-star"/></svg></button>
         </div>
         <div class="panel inspector">
-          <div class="preview screen"><canvas id="selWave"></canvas></div>
-          <div id="noSel" class="muted" data-i18n="noSel"></div>
+          <div class="preview screen"><canvas id="selWave"></canvas><div id="noSel" class="previewmsg" data-i18n="noSel"></div></div>
           <form id="props" hidden>
             <label class="field"><span class="lab" data-i18n="pName">Nombre</span><input id="pName" maxlength="8" autocomplete="off" spellcheck="false"></label>
             <label class="field"><span class="lab" data-i18n="pStart">Inicio (s)</span><input id="pStart" type="number" step="0.001" min="0"></label>
@@ -243,7 +242,7 @@
     <section><span class="step">Chop</span><p data-i18n-html="howChop"></p></section>
     <section><span class="step dl-step">Download</span><p data-i18n-html="howEnd"></p></section>
   </div>
-  <p class="muted small" data-i18n-html="help2"></p>
+  <p class="muted small kbdhelp" data-i18n-html="help2"></p>
   <div class="howfoot">
     <label class="check"><input type="checkbox" id="howNoShow"> <span data-i18n="noShow">No mostrar más</span></label>
     <button type="button" id="howClose" class="btn primary" data-i18n="close">Cerrar</button>
@@ -266,20 +265,20 @@
   </div>
 </dialog>
 <dialog id="quantum" class="howto qdialog" aria-labelledby="qTitle">
-  <h2 id="qTitle"><svg class="ic"><use href="#i-atom"/></svg> <span data-i18n="qTitle">Tu símbolo</span></h2>
+  <h2 id="qTitle"><svg class="ic"><use href="#i-atom"/></svg> <span data-i18n="qTitle">Lectura de símbolo</span></h2>
   <p data-i18n="qIntro"></p>
   <div class="sigilpane">
     <div class="screen"><canvas id="sigil" data-i18n-aria="qSigilHint"></canvas></div>
     <div class="sigilfoot">
-      <span class="muted small" data-i18n="qSigilHint"></span>
+      <span id="sigilHint" class="muted small" data-i18n="qSigilHint"></span>
       <div class="sigilbar"><div id="sigilFill"></div></div>
-      <button type="button" id="sigilClear" class="link" data-i18n="qClear">Borrar</button>
+      <button type="button" id="sigilClear" class="link" data-i18n="qClear">Reiniciar</button>
     </div>
   </div>
   <p class="muted small" data-i18n="qNote"></p>
   <div class="howfoot">
     <button type="button" id="qCancel" class="btn"><span data-i18n="cancel">Cancelar</span></button>
-    <button type="button" id="qGo" class="btn primary" hidden><svg class="ic"><use href="#i-atom"/></svg><span data-i18n="qGo">Leer</span></button>
+    <button type="button" id="qGo" class="btn primary" hidden><svg class="ic"><use href="#i-atom"/></svg><span data-i18n="qGo">Descifrar</span></button>
   </div>
 </dialog>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
