@@ -30,7 +30,7 @@ Star ★ the slices you like and dig again: starred slices stay, the rest get re
 - Per-slice settings: name (8 characters), mono/stereo, speed (×1, ×0.75, ×0.5, ×0.25, tape style), fade in/out, volume and reverse.
 - **Volume** per slice: *Original*, *Normalized* (peak to −0.3 dBFS), *Loud* (default) or *Max*. Loud and Max push the slice into a look-ahead limiter, so quiet tails come up while peaks stay under −0.3 dBFS — closer to the level of commercial sample packs.
 - **Slots are pads:** tap a slot (finger or mouse) or press its key to hear it instantly. The active bank maps to a 4×4 block of keys — `1 2 3 4` / `Q W E R` / `A S D F` / `Z X C V` — shown on each slot. Slices are pre-rendered in the background so pads respond right away.
-- Listen to the original, or play all slices **in order** or **shuffled**, back to back and looping.
+- **Crop here** (in the slice panel) keeps only that stretch of the audio and discards the rest — handy to isolate one part of a long recording before digging into it.
 
 ### 3 · Download
 

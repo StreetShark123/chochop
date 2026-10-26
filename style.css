@@ -274,7 +274,6 @@ input[type=checkbox] { width: 16px; height: 16px; margin: 0; }
 .slot.kept .idx::before { content: ""; position: absolute; left: 0; top: 1px; width: 6px; height: 6px; background: var(--star); box-shadow: 0 0 6px var(--star); }
 .slot.sel { --fc: var(--accent); --fill: #1a0a12; }
 .slot.sel .nm { color: var(--accent); }
-.slot.now { --fc: var(--edge); }
 .slot.free { --fill: #040b07; cursor: default; }
 .slot.hit::after { content: ""; position: absolute; inset: 0; background: var(--edge); animation: hit 0.18s ease-out forwards; pointer-events: none; }
 @keyframes hit { from { opacity: 0.55; } to { opacity: 0; } }

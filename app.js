@@ -28,7 +28,7 @@ const els = {
   props: $('props'), noSel: $('noSel'), pInfo: $('pInfo'),
   recmenu: $('recmenu'), recbar: $('recbar'), recLabel: $('recLabel'), recTime: $('recTime'),
   recLevel: $('recLevel'), recHint: $('recHint'),
-  digN: $('digN'), digLen: $('digLen'), seqPlay: $('seqPlay'), seqRand: $('seqRand'),
+  digN: $('digN'), digLen: $('digLen'),
 };
 
 const state = {
@@ -342,7 +342,6 @@ function renderList() {
     li.className = 'slot';
     li.dataset.id = r.id;
     li.classList.toggle('sel', r.id === state.sel);
-    li.classList.toggle('now', !!seq && r.id === seq.now);
     li.classList.toggle('kept', !!r.keep);
     li.tabIndex = 0;
     const thumb = document.createElement('canvas');
@@ -421,6 +420,20 @@ function selectLight() {
   draw();
 }
 
+// Keep only the selected slice's stretch of the audio; the rest (and every slice) is dropped.
+function cropToSel() {
+  const r = getSel();
+  if (!r || !confirm(t('cropConfirm'))) return;
+  const src = state.buffer, sr = src.sampleRate;
+  const a = Math.floor(r.start * sr), b = Math.min(src.length, Math.ceil(r.end * sr));
+  const buf = audio().createBuffer(src.numberOfChannels, Math.max(1, b - a), sr);
+  for (let c = 0; c < src.numberOfChannels; c++) buf.copyToChannel(src.getChannelData(c).subarray(a, b), c);
+  const pack = state.pack;
+  setBuffer(buf, els.fname.textContent);
+  setPack(pack); // cropping shouldn't rename the pack
+  toast(t('cropDone', { d: fmtT(buf.duration) }), 2500);
+}
+
 function setBankSize(n) {
   const old = state.bankSize;
   state.bankSize = [8, 12, 16].includes(n) ? n : 8;
@@ -496,6 +509,7 @@ function bindInspector() {
   $('pPlay').addEventListener('click', () => { const r = getSel(); if (r) playRegion(r); });
   els.pStar.addEventListener('click', () => { const r = getSel(); if (r) toggleKeep(r); });
   $('pDel').addEventListener('click', () => { if (state.sel) deleteRegion(state.sel); });
+  $('pCrop').addEventListener('click', cropToSel);
   $('pApplyAll').addEventListener('click', () => {
     const s = getSel(); if (!s) return;
     for (const r of state.regions) Object.assign(r, { mono: s.mono, speed: s.speed, fadeIn: s.fadeIn, fadeOut: s.fadeOut, lvl: s.lvl, reverse: s.reverse });
@@ -557,7 +571,7 @@ function bindWave() {
   const c = els.wave;
   c.addEventListener('pointerdown', (e) => {
     if (!state.buffer) return;
-    c.setPointerCapture(e.pointerId);
+    try { c.setPointerCapture(e.pointerId); } catch {}
     const x = canvasX(e), time = xToT(x), hit = e.altKey ? null : hitTest(x);
     if (hit && hit.part !== 'body') {
       drag = { mode: 'edge', r: hit.r, part: hit.part };
@@ -639,7 +653,7 @@ function bindWave() {
     const span = state.view.end - state.view.start;
     setView(mid - span / 2, mid + span / 2);
   };
-  ov.addEventListener('pointerdown', (e) => { if (!state.buffer) return; ov.setPointerCapture(e.pointerId); ovSet(e); ov.onpointermove = ovSet; });
+  ov.addEventListener('pointerdown', (e) => { if (!state.buffer) return; try { ov.setPointerCapture(e.pointerId); } catch {} ovSet(e); ov.onpointermove = ovSet; });
   ov.addEventListener('pointerup', () => { ov.onpointermove = null; });
 }
 
@@ -696,12 +710,6 @@ function warmSoon() {
 function stop() {
   playGen++;
   if (playing) { try { playing.src.stop(); } catch {} playing = null; }
-  if (seq) {
-    clearTimeout(seq.timer);
-    seq.srcs.forEach((s) => { try { s.stop(); } catch {} });
-    seq = null;
-    markNow();
-  }
 }
 
 async function playRegion(r) {
@@ -745,61 +753,6 @@ function tick() {
   if (raf) return;
   const loop = () => { draw(); raf = playing ? requestAnimationFrame(loop) : 0; };
   loop();
-}
-
-// ---------- sequence (like the Bard: chops back to back, in order or random) ----------
-let seq = null; // {mode, bufs, i, next, timer, srcs, now}
-
-async function playSeq(mode) {
-  const again = seq?.mode === mode;
-  stop();
-  if (again) { draw(); return; }
-  const list = sorted();
-  if (!list.length) { toast(t('needSlices'), 1800); return; }
-  const gen = playGen, ctx = audio();
-  await ctx.resume();
-  if (list.length > 8) toast(t('preparing'));
-  const bufs = await Promise.all(list.map(renderedBuffer));
-  if (list.length > 8) hideToast();
-  if (gen !== playGen) return;
-  const s = { mode, bufs, i: -1, next: ctx.currentTime + 0.05, srcs: new Set(), now: null };
-  seq = s;
-  markNow();
-  const pick = () => {
-    if (mode !== 'rand' || list.length < 2) return (s.i + 1) % list.length;
-    let j;
-    do j = Math.floor(Math.random() * list.length); while (j === s.i);
-    return j;
-  };
-  const pump = () => {
-    if (seq !== s) return;
-    while (s.next < ctx.currentTime + 0.25) {
-      s.i = pick();
-      const r = list[s.i], buf = s.bufs[s.i], at = s.next;
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start(at);
-      s.srcs.add(src);
-      src.onended = () => s.srcs.delete(src);
-      setTimeout(() => {
-        if (seq !== s) return;
-        playing = { src, t0: at, from: r.start, to: r.end, rate: r.speed, reverse: r.reverse };
-        s.now = r.id;
-        markNow();
-        tick();
-      }, Math.max(0, (at - ctx.currentTime) * 1000));
-      s.next += buf.duration;
-    }
-    s.timer = setTimeout(pump, 50);
-  };
-  pump();
-}
-
-function markNow() {
-  els.seqPlay.classList.toggle('on', seq?.mode === 'seq');
-  els.seqRand.classList.toggle('on', seq?.mode === 'rand');
-  for (const li of els.regions.children) li.classList.toggle('now', !!seq && +li.dataset.id === seq.now);
 }
 
 // ---------- dig ----------
@@ -1137,8 +1090,6 @@ function bindGlobal() {
 
   $('zoomall').addEventListener('click', () => setView(0, state.buffer.duration));
   $('playall').addEventListener('click', playOriginal);
-  els.seqPlay.addEventListener('click', () => playSeq('seq'));
-  els.seqRand.addEventListener('click', () => playSeq('rand'));
   $('stop').addEventListener('click', () => { stop(); draw(); });
   $('dig').addEventListener('click', dig);
   els.qGo.addEventListener('click', collapse);
@@ -1164,7 +1115,7 @@ function bindGlobal() {
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (e.code === 'Space') {
       e.preventDefault();
-      if (playing || seq) { stop(); draw(); return; }
+      if (playing) { stop(); draw(); return; }
       const r = getSel();
       r ? playRegion(r) : playOriginal();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.sel) {
