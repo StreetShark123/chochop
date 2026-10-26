@@ -797,8 +797,9 @@ function dig() {
 // A playful ritual: a sigil drawn by hand seeds 1024 random points over the audio, and Dig
 // takes the windows where they cluster most. The randomness is the sub-pixel, sub-millisecond
 // jitter of the strokes, hashed with SHA-256.
-const Q_POINTS = 1024, Q_BITS = Q_POINTS * 16, SIGIL_MIN = 160;
-const sigil = { pts: [], drawing: false };
+const Q_POINTS = 1024, Q_BITS = Q_POINTS * 16;
+const SIGIL_MS = 6000; // ritual time from the first stroke; draw as much as you like meanwhile
+const sigil = { pts: [], drawing: false, t0: 0, raf: 0 };
 
 function openQuantum() {
   if (!state.buffer || rec) return;
@@ -809,8 +810,19 @@ function openQuantum() {
 }
 
 function clearSigil() {
-  sigil.pts = [];
+  cancelAnimationFrame(sigil.raf);
+  sigil.pts = []; sigil.t0 = 0; sigil.raf = 0;
+  els.qGo.hidden = true;
+  $('sigilFill').style.width = '0';
   redrawSigil();
+}
+
+// The bar fills with time once drawing starts; when it's full, "Read" appears.
+function sigilTimer() {
+  const p = Math.min(1, (performance.now() - sigil.t0) / SIGIL_MS);
+  $('sigilFill').style.width = p * 100 + '%';
+  if (p < 1) sigil.raf = requestAnimationFrame(sigilTimer);
+  else { sigil.raf = 0; els.qGo.hidden = false; }
 }
 
 function redrawSigil() {
@@ -823,8 +835,6 @@ function redrawSigil() {
     if (p.start) ctx.moveTo(p.x * dpr, p.y * dpr); else ctx.lineTo(p.x * dpr, p.y * dpr);
   }
   ctx.stroke();
-  $('sigilFill').style.width = Math.min(100, (sigil.pts.length / SIGIL_MIN) * 100) + '%';
-  els.qGo.disabled = sigil.pts.length < SIGIL_MIN;
 }
 
 function bindSigil() {
@@ -841,6 +851,7 @@ function bindSigil() {
   c.addEventListener('pointerdown', (e) => {
     try { c.setPointerCapture(e.pointerId); } catch {}
     sigil.drawing = true; add(e, true);
+    if (!sigil.t0) { sigil.t0 = performance.now(); sigilTimer(); }
   });
   c.addEventListener('pointermove', (e) => { if (sigil.drawing) add(e, false); });
   const up = () => { sigil.drawing = false; };
@@ -864,7 +875,8 @@ async function expandBits(seed, n) {
 async function collapse() {
   const plan = digPlan();
   if (!plan) { $('quantum').close(); return; }
-  els.qGo.disabled = true;
+  els.qGo.hidden = true;
+  cancelAnimationFrame(sigil.raf);
   // Every stroke sample (x, y, time, pressure), condensed into a seed.
   const raw = new Float64Array(sigil.pts.length * 4);
   sigil.pts.forEach((p, i) => raw.set([p.x, p.y, p.t, p.p], i * 4));
@@ -1094,6 +1106,7 @@ function bindGlobal() {
   $('dig').addEventListener('click', dig);
   els.qGo.addEventListener('click', collapse);
   $('qCancel').addEventListener('click', () => $('quantum').close());
+  $('quantum').addEventListener('close', () => cancelAnimationFrame(sigil.raf));
   $('quantum').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
   bindSigil();
   $('clear').addEventListener('click', () => {
