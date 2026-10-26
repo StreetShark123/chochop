@@ -56,12 +56,6 @@
 <header class="top">
   <div class="brand"><span class="logo">chop chop</span><span class="tag" data-i18n="tag">dig · chop · download</span></div>
   <div class="actions">
-    <div class="langs" role="group" data-i18n-aria="langs" aria-label="Idioma">
-      <button type="button" data-lang="es" lang="es" title="Castellano">ES</button>
-      <button type="button" data-lang="gl" lang="gl" title="Galego">GL</button>
-      <button type="button" data-lang="en" lang="en" title="English">EN</button>
-    </div>
-    <button type="button" id="howBtn" class="btn icon" data-i18n-title="howBtn" data-i18n-aria="howBtn"><svg class="ic"><use href="#i-help"/></svg></button>
     <button type="button" id="openBtn" class="btn"><svg class="ic"><use href="#i-open"/></svg><span class="lbl" data-i18n="open">Abrir audio</span></button>
     <input id="file" type="file" accept="audio/*,.wav,.mp3,.aif,.aiff,.ogg,.flac,.m4a" hidden>
     <details class="recmenu" id="recmenu">
@@ -72,6 +66,13 @@
         <button type="button" id="recSys"><svg class="ic"><use href="#i-screen"/></svg><span><b data-i18n="recSysT">El ordenador</b><span data-i18n="recSysD"></span></span></button>
       </div>
     </details>
+    <span class="actsep" aria-hidden="true"></span>
+    <button type="button" id="howBtn" class="btn icon" data-i18n-title="howBtn" data-i18n-aria="howBtn"><svg class="ic"><use href="#i-help"/></svg></button>
+    <div class="langs" role="group" data-i18n-aria="langs" aria-label="Idioma">
+      <button type="button" data-lang="es" lang="es" title="Castellano">ES</button>
+      <button type="button" data-lang="gl" lang="gl" title="Galego">GL</button>
+      <button type="button" data-lang="en" lang="en" title="English">EN</button>
+    </div>
   </div>
 </header>
 
