@@ -84,7 +84,7 @@
         <span id="fmeta" class="tabmeta"></span>
       </div>
       <div class="panel wavepanel">
-        <div class="wavewrap" id="wavewrap">
+        <div class="wavewrap screen" id="wavewrap">
           <label for="file" id="waveEmpty" class="waveempty">
             <svg class="ic big"><use href="#i-open"/></svg>
             <b data-i18n="dropT">Arrastra aquí un audio</b>
@@ -167,7 +167,7 @@
           <button type="button" id="pStar" class="iconbtn star" hidden><svg class="ic"><use href="#i-star"/></svg></button>
         </div>
         <div class="panel inspector">
-          <div class="preview"><canvas id="selWave"></canvas></div>
+          <div class="preview screen"><canvas id="selWave"></canvas></div>
           <div id="noSel" class="muted" data-i18n="noSel"></div>
           <form id="props" hidden>
             <label class="field"><span class="lab" data-i18n="pName">Nombre</span><input id="pName" maxlength="8" autocomplete="off" spellcheck="false"></label>
@@ -269,7 +269,7 @@
   <h2 id="qTitle"><svg class="ic"><use href="#i-atom"/></svg> <span data-i18n="qTitle">Tu símbolo</span></h2>
   <p data-i18n="qIntro"></p>
   <div class="sigilpane">
-    <canvas id="sigil" data-i18n-aria="qSigilHint"></canvas>
+    <div class="screen"><canvas id="sigil" data-i18n-aria="qSigilHint"></canvas></div>
     <div class="sigilfoot">
       <span class="muted small" data-i18n="qSigilHint"></span>
       <div class="sigilbar"><div id="sigilFill"></div></div>

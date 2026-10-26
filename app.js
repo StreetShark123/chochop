@@ -226,7 +226,7 @@ function toggleKeep(r) {
 // Theme colours are read from CSS once; the theme is fixed (dark only).
 let C = null;
 const colors = () => (C ||= Object.fromEntries(
-  ['region-edge', 'sel', 'region', 'accent', 'line', 'wave', 'muted']
+  ['region-edge', 'sel', 'region', 'accent', 'line', 'wave', 'muted', 'bg']
     .map((v) => [v, getComputedStyle(document.documentElement).getPropertyValue(`--${v}`).trim()]),
 ));
 
@@ -292,25 +292,45 @@ function draw() {
   const c = els.wave, ctx = c.getContext('2d'), w = c.width, h = c.height, k = colors();
   const { start, end } = state.view;
   ctx.clearRect(0, 0, w, h);
-  // regions
-  const edge = k['region-edge'];
-  ctx.font = `${8 * dpr}px Silkscreen, ui-monospace, monospace`;
-  sorted().forEach((r, i) => {
+  // regions: tinted span + HUD edge markers (dashed; solid pink when selected)
+  const list = sorted();
+  for (const r of list) {
     const x1 = tToX(r.start), x2 = tToX(r.end);
-    if (x2 < 0 || x1 > w) return;
-    const isSel = r.id === state.sel;
+    if (x2 < 0 || x1 > w) continue;
+    const isSel = r.id === state.sel, lw = (isSel ? 2 : 1) * dpr;
     ctx.fillStyle = isSel ? k.sel : k.region;
     ctx.fillRect(x1, 0, x2 - x1, h);
-    ctx.fillStyle = isSel ? k.accent : edge;
-    ctx.fillRect(x1, 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
-    ctx.fillRect(x2 - dpr * (isSel ? 2 : 1), 0, Math.max(1, dpr * (isSel ? 2 : 1)), h);
-    if (x2 - x1 > 28 * dpr) ctx.fillText(`${i + 1} ${r.name}${r.keep ? ' *' : ''}`, x1 + 5 * dpr, 13 * dpr);
-  });
+    ctx.strokeStyle = isSel ? k.accent : k['region-edge'];
+    ctx.lineWidth = lw;
+    ctx.setLineDash(isSel ? [] : [4 * dpr, 3 * dpr]);
+    ctx.beginPath();
+    ctx.moveTo(x1 + lw / 2, 0); ctx.lineTo(x1 + lw / 2, h);
+    ctx.moveTo(x2 - lw / 2, 0); ctx.lineTo(x2 - lw / 2, h);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
   // centre line + wave
   ctx.fillStyle = k.line;
   ctx.fillRect(0, h / 2, w, 1);
   ctx.drawImage(layer(layers.wave, w, h, `${state.bufId}:${w}x${h}:${start}:${end}`,
     (g) => drawWave(g, w, h, start, end, k.wave, Math.max(1, Math.round(2 * dpr)))), 0, 0);
+  // HUD tags on top of the wave: number + name, filled (pink when selected)
+  ctx.font = `${8 * dpr}px Silkscreen, ui-monospace, monospace`;
+  ctx.textBaseline = 'middle';
+  list.forEach((r, i) => {
+    const x1 = tToX(r.start), x2 = tToX(r.end);
+    if (x2 < 0 || x1 > w || x2 - x1 < 22 * dpr) return;
+    const isSel = r.id === state.sel;
+    let label = `${i + 1} ${r.name}${r.keep ? ' *' : ''}`;
+    const room = x2 - x1 - 4 * dpr;
+    if (ctx.measureText(label).width + 8 * dpr > room) label = `${i + 1}${r.keep ? '*' : ''}`;
+    const tw = Math.min(room, ctx.measureText(label).width + 8 * dpr), th = 13 * dpr;
+    ctx.fillStyle = isSel ? k.accent : k['region-edge'];
+    ctx.fillRect(Math.max(0, x1), 0, tw, th);
+    ctx.fillStyle = k.bg;
+    ctx.fillText(label, Math.max(0, x1) + 4 * dpr, th / 2 + dpr / 2);
+  });
+  ctx.textBaseline = 'alphabetic';
   // cursor
   ctx.fillStyle = k.muted;
   const cx = tToX(state.cursor);
@@ -1226,7 +1246,7 @@ function bindGlobal() {
       reveal(getSel());
     }
   });
-  window.addEventListener('resize', resize);
+  window.addEventListener('resize', () => { resize(); refresh(); }); // thumbnails and preview follow the new size
 }
 
 function bindLang() {
