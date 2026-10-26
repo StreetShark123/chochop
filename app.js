@@ -1,6 +1,6 @@
 import {
   TARGET_RATE, cleanName, uniqueNames,
-  detectOnsets, digRanges, bitsToPoints, anomalyRanges, finish, encodeWav, makeZip, fmtTime,
+  detectOnsets, beatGrid, digRanges, bitsToPoints, anomalyRanges, finish, encodeWav, makeZip, fmtTime,
 } from './dsp.js';
 import { t, applyI18n, setLang, onLangChange, getLang } from './i18n.js';
 
@@ -767,9 +767,10 @@ function digPlan() {
   const want = n - kept.length;
   if (want <= 0) { toast(t('allKept', { n: kept.length }), 2500); return null; }
   if (onsetCache?.buffer !== state.buffer) {
-    onsetCache = { buffer: state.buffer, onsets: detectOnsets(state.mono, state.buffer.sampleRate, 5) };
+    const sr = state.buffer.sampleRate;
+    onsetCache = { buffer: state.buffer, onsets: detectOnsets(state.mono, sr, 5), grid: beatGrid(state.mono, sr) };
   }
-  return { want, L, dur, kept, onsets: onsetCache.onsets, taken: kept.map((r) => [r.start, r.end]) };
+  return { want, L, dur, kept, onsets: onsetCache.onsets, grid: onsetCache.grid, taken: kept.map((r) => [r.start, r.end]) };
 }
 
 function placeDig(plan, ranges) {
@@ -786,11 +787,15 @@ function dig() {
   if (digMode() === 'quantum') { openQuantum(); return; }
   const plan = digPlan();
   if (!plan) return;
+  const mode = digMode(), grid = mode === 'spread' ? plan.grid : null;
+  // Spread follows the song: slices start on bar lines and last a whole number of beats.
+  if (grid) plan.L = Math.max(1, Math.round(plan.L / grid.beat)) * grid.beat;
   const ranges = digRanges({
-    onsets: plan.onsets, dur: plan.dur, n: plan.want, len: plan.L, mode: digMode(), from: state.cursor, taken: plan.taken,
+    onsets: plan.onsets, grid, dur: plan.dur, n: plan.want, len: plan.L, mode, from: state.cursor, taken: plan.taken,
   });
   placeDig(plan, ranges);
-  toast(plan.kept.length ? t('dugKept', { n: ranges.length, k: plan.kept.length }) : t('dug', { n: ranges.length, d: fmtT(plan.L) }), 1600);
+  const msg = plan.kept.length ? t('dugKept', { n: ranges.length, k: plan.kept.length }) : t('dug', { n: ranges.length, d: fmtT(plan.L) });
+  toast(grid ? `${msg} · ${Math.round(grid.bpm)} BPM` : msg, grid ? 2600 : 1600);
 }
 
 // ---------- sigil dig ----------

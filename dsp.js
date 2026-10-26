@@ -77,14 +77,75 @@ export function detectOnsets(data, rate, sensitivity = 5, minGapSec = 0.08) {
 }
 
 /**
+ * Tempo and beat grid from a mono signal. Onset strength = positive log-energy flux per
+ * 512-sample hop; the beat period is the autocorrelation peak between 70 and 180 BPM
+ * (gently weighted towards ~120), its phase the offset whose pulses carry the most energy,
+ * and each beat is nudged to a nearby flux peak. Bars start on whichever of the four
+ * beat phases is strongest overall. Beats are tracked one by one, so the grid follows the song. Returns { bpm, beat, beats, bars } (times in seconds,
+ * each { t, s } with s = onset strength) or null if the audio is too short or flat.
+ */
+export function beatGrid(data, rate) {
+  const hop = 512, frames = Math.floor(data.length / hop), fps = rate / hop;
+  if (frames < fps * 4) return null;
+  const env = new Float32Array(frames);
+  let prev = 0;
+  for (let f = 0; f < frames; f++) {
+    let e = 0;
+    for (let i = f * hop, end = i + hop; i < end; i++) e += data[i] * data[i];
+    const v = Math.log10(Math.sqrt(e / hop) + 1e-4);
+    env[f] = f ? Math.max(0, v - prev) : 0;
+    prev = v;
+  }
+  // Autocorrelation over plausible tempi.
+  const lagMin = Math.floor((fps * 60) / 180), lagMax = Math.ceil((fps * 60) / 70);
+  const ac = new Float64Array(lagMax + 2);
+  for (let lag = lagMin - 1; lag <= lagMax + 1; lag++) {
+    let sum = 0;
+    for (let f = 0; f + lag < frames; f++) sum += env[f] * env[f + lag];
+    ac[lag] = sum / (frames - lag);
+  }
+  let bestLag = 0, best = 0;
+  for (let lag = lagMin; lag <= lagMax; lag++) {
+    const bpm = (60 * fps) / lag;
+    const w = Math.exp(-0.5 * (Math.log2(bpm / 120) / 0.9) ** 2);
+    if (ac[lag] * w > best) { best = ac[lag] * w; bestLag = lag; }
+  }
+  if (!best) return null;
+  // Parabolic interpolation for a sub-frame period.
+  const a0 = ac[bestLag - 1], a1 = ac[bestLag], a2 = ac[bestLag + 1], den = a0 - 2 * a1 + a2;
+  const period = bestLag + (den ? Math.max(-0.5, Math.min(0.5, (0.5 * (a0 - a2)) / den)) : 0);
+  // Phase: the offset whose pulse train collects the most onset strength.
+  let off = 0, offScore = -1;
+  for (let o = 0; o < period; o++) {
+    let sum = 0;
+    for (let x = o; x < frames; x += period) sum += env[Math.round(x)] || 0;
+    if (sum > offScore) { offScore = sum; off = o; }
+  }
+  // Follow the beat: predict each one from the previous (nudged) beat, so tempo error never accumulates.
+  const beats = [], reach = Math.max(2, Math.round(period * 0.1));
+  for (let x = off; x < frames; ) {
+    const f = Math.round(x);
+    let peak = f;
+    for (let d = -reach; d <= reach; d++) if ((env[f + d] || 0) > (env[peak] || 0)) peak = f + d;
+    if ((env[peak] || 0) <= (env[f] || 0) * 1.5) peak = f; // only move for a clearly stronger hit
+    beats.push({ t: (Math.max(0, peak) * hop) / rate, s: env[peak] || 0 });
+    x = peak + period;
+  }
+  const phase = [0, 1, 2, 3].map((p) => beats.reduce((acc, b, i) => acc + (i % 4 === p ? b.s : 0), 0));
+  const down = phase.indexOf(Math.max(...phase));
+  return { bpm: (60 * fps) / period, beat: period / fps, beats, bars: beats.filter((_, i) => i % 4 === down) };
+}
+
+/**
  * Pick n windows of `len` seconds inside [0, dur] ("dig").
  *  - random: random detected hits (falls back to anywhere), avoiding overlap
  *    with `taken` ranges and with each other when possible.
- *  - spread: evenly spread across the audio, each snapped to the nearest hit.
+ *  - spread: one window per equal stretch of the audio, so they cover the whole track. With a
+ *    beat grid each starts on the strongest free bar line in its stretch (then a beat, then a hit).
  *  - row:    back to back from `from`, shifted left if they would run past the end.
  * Returns [start, end] pairs sorted by start.
  */
-export function digRanges({ onsets = [], dur, n, len, mode = 'random', from = 0, taken = [], rand = Math.random }) {
+export function digRanges({ onsets = [], grid = null, dur, n, len, mode = 'random', from = 0, taken = [], rand = Math.random }) {
   const L = Math.min(len, dur);
   const maxStart = dur - L;
   if (n <= 0 || L <= 0) return [];
@@ -100,7 +161,30 @@ export function digRanges({ onsets = [], dur, n, len, mode = 'random', from = 0,
     starts = Array.from({ length: fit }, (_, i) => s0 + i * L);
   } else if (mode === 'spread') {
     const slot = dur / n;
-    starts = Array.from({ length: n }, (_, i) => nearest(Math.max(0, Math.min(maxStart, slot * (i + 0.5) - L / 2)), slot / 2));
+    if (grid) {
+      const busy = taken.map(([a, b]) => [a, b]);
+      // A grid line a few ms inside the previous window (detection jitter) starts right at its end.
+      const fit = (t) => {
+        for (const [a, b] of busy) if (t < b && t >= b - 0.02) t = b;
+        return t <= maxStart && busy.every(([a, b]) => t + L <= a || t >= b) ? t : null;
+      };
+      const strongest = (list, lo, hi) => {
+        let pick = null;
+        for (const b of list) if (b.t >= lo && b.t < hi && fit(b.t) != null && (!pick || b.s > pick.s)) pick = b;
+        return pick && fit(pick.t);
+      };
+      starts = [];
+      for (let i = 0; i < n; i++) {
+        const lo = slot * i, hi = slot * (i + 1);
+        let t = strongest(grid.bars, lo, hi) ?? strongest(grid.beats, lo, hi);
+        if (t == null) t = fit(nearest(Math.max(0, Math.min(maxStart, lo + slot / 2 - L / 2)), slot / 2));
+        if (t == null) continue;
+        busy.push([t, t + L]);
+        starts.push(t);
+      }
+    } else {
+      starts = Array.from({ length: n }, (_, i) => nearest(Math.max(0, Math.min(maxStart, slot * (i + 0.5) - L / 2)), slot / 2));
+    }
   } else {
     const pool = onsets.filter((t) => t <= maxStart);
     const busy = taken.map(([a, b]) => [a, b]);

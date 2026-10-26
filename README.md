@@ -17,7 +17,7 @@ Everything happens in your browser. No uploads, no accounts, no tracking — see
 Ask for something like **“8 slices of 2 s”** and hit **Dig**. Choose how to dig:
 
 - **random** — random spots, each starting on a detected hit, without overlapping.
-- **spread** — evenly spread across the whole audio, snapped to the nearest hit.
+- **spread** — one slice per equal stretch of the whole track, but musically: chop chop detects the tempo and beat grid, starts each slice on the strongest bar line in its stretch and rounds the length to whole beats (the toast shows the BPM), so slices land on the downbeat and loop in time.
 - **in a row** — back to back from the cursor (click the waveform to place it).
 - **sigil** — a playful ritual: **draw a symbol** with mouse or finger and let it choose. The sub-pixel, sub-millisecond jitter of your strokes is hashed (SHA-256) into a seed that scatters 1024 random points over the audio; Dig takes the windows where they pile up most. Nothing is kept or sent.
 
