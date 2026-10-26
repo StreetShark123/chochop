@@ -524,7 +524,7 @@ function renderInspector() {
   P.lvl.value = r.lvl;
   P.rev.checked = r.reverse;
   const len = (r.end - r.start) / r.speed;
-  els.pInfo.textContent = t('pInfo', { d: fmtT(len) });
+  els.pInfo.textContent = t('pInfo', { d: fmtT(len) }) + (r.speed > 1 ? ` · ${t('speedHint')}` : '');
 }
 
 function bindInspector() {

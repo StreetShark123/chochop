@@ -129,15 +129,20 @@
         <div class="module">
           <div class="tabrow">
             <span class="tab">Chop</span>
-            <span id="count" class="tabmeta"></span>
-            <div class="seg mini" role="radiogroup" data-i18n-aria="bankSize" data-i18n-title="bankSizeT">
-              <label><input type="radio" name="bank" value="8" checked><span>8</span></label>
-              <label><input type="radio" name="bank" value="12"><span>12</span></label>
-              <label><input type="radio" name="bank" value="16"><span>16</span></label>
-            </div>
             <button id="clear" class="link" data-i18n="clear">Empezar de cero</button>
           </div>
           <div class="panel">
+            <div class="holdbar">
+              <span id="count" class="muted small"></span>
+              <span class="banksize">
+                <span class="lab" data-i18n="bankSize">Huecos por banco</span>
+                <span class="seg mini" role="radiogroup" data-i18n-aria="bankSize" data-i18n-title="bankSizeT">
+                  <label><input type="radio" name="bank" value="8" checked><span>8</span></label>
+                  <label><input type="radio" name="bank" value="12"><span>12</span></label>
+                  <label><input type="radio" name="bank" value="16"><span>16</span></label>
+                </span>
+              </span>
+            </div>
             <ol id="regions" class="hold"></ol>
           </div>
         </div>
@@ -173,6 +178,7 @@
             </label>
             <label class="field"><span class="lab" data-i18n="pSpeed">Velocidad</span>
               <select id="pSpeed">
+                <option value="2" data-i18n="x2">×2 · +1 oct. (lo-fi)</option>
                 <option value="1">×1</option>
                 <option value="0.75" data-i18n="x075">×0,75</option>
                 <option value="0.5" data-i18n="x05">×0,5 · −1 oct.</option>
