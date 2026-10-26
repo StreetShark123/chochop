@@ -62,8 +62,9 @@ async function loadFile(file) {
     toast(t('decoding'));
     const ab = await file.arrayBuffer();
     const buf = await audio().decodeAudioData(ab);
+    const replacing = !!state.buffer;
     setBuffer(buf, file.name);
-    hideToast();
+    if (replacing) toast(file.name, 3000, undoAction()); else hideToast();
   } catch (e) {
     console.error(e);
     toast(t('readFail'), 3500);
@@ -71,6 +72,7 @@ async function loadFile(file) {
 }
 
 function setBuffer(buf, name) {
+  if (state.buffer) snapshot();
   stop();
   state.buffer = buf;
   state.bufId++;
@@ -88,6 +90,35 @@ function setBuffer(buf, name) {
   resize();
   refresh();
 }
+
+// One level of undo for anything that replaces audio or slices (load, record, crop, dig,
+// remove, start over, copy to all). Cheap: buffers are shared, slices are copied.
+let undoSnap = null;
+function snapshot() {
+  undoSnap = {
+    buffer: state.buffer, mono: state.mono, peaks: state.peaks, fname: els.fname.textContent,
+    regions: state.regions.map((r) => ({ ...r })), sel: state.sel, pack: state.pack,
+    view: { ...state.view }, cursor: state.cursor,
+  };
+}
+function undo() {
+  const s = undoSnap;
+  if (!s) return;
+  undoSnap = null;
+  stop();
+  if (s.buffer !== state.buffer) {
+    Object.assign(state, { buffer: s.buffer, mono: s.mono, peaks: s.peaks });
+    state.bufId++;
+    els.fname.textContent = s.fname;
+    renderMeta();
+  }
+  Object.assign(state, { regions: s.regions, sel: s.sel, view: s.view, cursor: s.cursor });
+  setPack(s.pack);
+  resize();
+  refresh();
+  toast(t('undone'), 1500);
+}
+const undoAction = () => ({ label: t('undo'), run: undo });
 
 // Before any audio is loaded the editor is visible but its controls are off.
 function setReady(on) {
@@ -165,10 +196,12 @@ function renumber() {
 }
 
 function deleteRegion(id) {
+  snapshot();
   state.regions = state.regions.filter((r) => r.id !== id);
   if (state.sel === id) state.sel = null;
   renumber();
   refresh();
+  toast(t('removed'), 3000, undoAction());
 }
 
 // Dig length: changing it resizes every chop that isn't starred.
@@ -423,7 +456,7 @@ function selectLight() {
 // Keep only the selected slice's stretch of the audio; the rest (and every slice) is dropped.
 function cropToSel() {
   const r = getSel();
-  if (!r || !confirm(t('cropConfirm'))) return;
+  if (!r) return;
   const src = state.buffer, sr = src.sampleRate;
   const a = Math.floor(r.start * sr), b = Math.min(src.length, Math.ceil(r.end * sr));
   const buf = audio().createBuffer(src.numberOfChannels, Math.max(1, b - a), sr);
@@ -431,7 +464,7 @@ function cropToSel() {
   const pack = state.pack;
   setBuffer(buf, els.fname.textContent);
   setPack(pack); // cropping shouldn't rename the pack
-  toast(t('cropDone', { d: fmtT(buf.duration) }), 2500);
+  toast(t('cropDone', { d: fmtT(buf.duration) }), 4000, undoAction());
 }
 
 function setBankSize(n) {
@@ -512,9 +545,10 @@ function bindInspector() {
   $('pCrop').addEventListener('click', cropToSel);
   $('pApplyAll').addEventListener('click', () => {
     const s = getSel(); if (!s) return;
+    snapshot();
     for (const r of state.regions) Object.assign(r, { mono: s.mono, speed: s.speed, fadeIn: s.fadeIn, fadeOut: s.fadeOut, lvl: s.lvl, reverse: s.reverse });
     refresh();
-    toast(t('copied'), 1600);
+    toast(t('copied'), 3000, undoAction());
   });
 }
 
@@ -774,6 +808,7 @@ function digPlan() {
 }
 
 function placeDig(plan, ranges) {
+  snapshot();
   const base = defaults();
   stop();
   state.regions = [...plan.kept];
@@ -795,7 +830,7 @@ function dig() {
   });
   placeDig(plan, ranges);
   const msg = plan.kept.length ? t('dugKept', { n: ranges.length, k: plan.kept.length }) : t('dug', { n: ranges.length, d: fmtT(plan.L) });
-  toast(grid ? `${msg} · ${Math.round(grid.bpm)} BPM` : msg, grid ? 2600 : 1600);
+  toast(grid ? `${msg} · ${Math.round(grid.bpm)} BPM` : msg, 3000, undoAction());
 }
 
 // ---------- sigil dig ----------
@@ -890,7 +925,7 @@ async function collapse() {
   const { ranges } = anomalyRanges({ points, dur: plan.dur, n: plan.want, len: plan.L, taken: plan.taken, onsets: plan.onsets });
   $('quantum').close();
   placeDig(plan, ranges);
-  toast(t('qDone', { n: ranges.length }), 2500);
+  toast(t('qDone', { n: ranges.length }), 3000, undoAction());
 }
 
 // ---------- export ----------
@@ -937,7 +972,6 @@ let recWorklet = null;
 async function startRec(kind) {
   els.recmenu.open = false;
   if (rec) return;
-  if (state.regions.length && !confirm(t('recConfirm'))) return;
   stop();
   let stream;
   try {
@@ -1040,7 +1074,7 @@ async function stopRec(keep) {
   const now = new Date();
   const hhmm = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
   setBuffer(buf, `${{ tab: 'tab', system: 'pc', mic: 'mic' }[r.kind]}-${hhmm}.wav`);
-  toast(t('recDone', { d: fmtT(buf.duration) }), 2000);
+  toast(t('recDone', { d: fmtT(buf.duration) }), 3000, state.buffer && undoSnap ? undoAction() : null);
 }
 
 function renderRecLabels() {
@@ -1091,8 +1125,14 @@ function bindRec() {
 // ---------- misc ----------
 function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
 let toastTimer = null;
-function toast(msg, ms) {
+function toast(msg, ms, action) {
   els.toast.textContent = msg;
+  if (action) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'toastbtn'; b.textContent = action.label;
+    b.addEventListener('click', () => { hideToast(); action.run(); });
+    els.toast.append(b);
+  }
   els.toast.hidden = false;
   clearTimeout(toastTimer);
   if (ms) toastTimer = setTimeout(hideToast, ms);
@@ -1100,6 +1140,7 @@ function toast(msg, ms) {
 function hideToast() { els.toast.hidden = true; }
 
 function bindGlobal() {
+  $('openBtn').addEventListener('click', () => els.file.click());
   els.file.addEventListener('change', () => { const f = els.file.files[0]; if (f) loadFile(f); els.file.value = ''; });
   ['dragenter', 'dragover'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); els.wavewrap.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); els.wavewrap.classList.remove('over'); }));
@@ -1115,7 +1156,10 @@ function bindGlobal() {
   $('quantum').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
   bindSigil();
   $('clear').addEventListener('click', () => {
-    if (state.regions.length && confirm(t('clearConfirm'))) { state.regions = []; state.sel = null; refresh(); }
+    if (!state.regions.length) return;
+    snapshot();
+    state.regions = []; state.sel = null; refresh();
+    toast(t('cleared'), 3000, undoAction());
   });
   els.digLen.addEventListener('input', applyDigLen);
   document.querySelectorAll('input[name=bank]').forEach((el) => el.addEventListener('change', () => setBankSize(+el.value)));
@@ -1127,6 +1171,10 @@ function bindGlobal() {
 
   document.addEventListener('keydown', (e) => {
     if (document.querySelector('dialog[open]')) return;
+    const typing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName);
+    if ((e.metaKey || e.ctrlKey) && e.code === 'KeyZ' && !e.shiftKey && !typing && undoSnap) {
+      e.preventDefault(); undo(); return;
+    }
     if (e.key === 'Escape' && els.recmenu.open) { els.recmenu.open = false; return; }
     if (!state.buffer || rec || e.metaKey || e.ctrlKey || e.altKey) return;
     const tag = document.activeElement?.tagName;

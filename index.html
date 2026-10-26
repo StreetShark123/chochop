@@ -62,7 +62,7 @@
       <button type="button" data-lang="en" lang="en" title="English">EN</button>
     </div>
     <button type="button" id="howBtn" class="btn icon" data-i18n-title="howBtn" data-i18n-aria="howBtn"><svg class="ic"><use href="#i-help"/></svg></button>
-    <label class="btn" for="file"><svg class="ic"><use href="#i-open"/></svg><span class="lbl" data-i18n="open">Abrir audio</span></label>
+    <button type="button" id="openBtn" class="btn"><svg class="ic"><use href="#i-open"/></svg><span class="lbl" data-i18n="open">Abrir audio</span></button>
     <input id="file" type="file" accept="audio/*,.wav,.mp3,.aif,.aiff,.ogg,.flac,.m4a" hidden>
     <details class="recmenu" id="recmenu">
       <summary class="btn rec"><svg class="ic"><use href="#i-rec"/></svg><span class="lbl" data-i18n="rec">Grabar</span><svg class="ic caret"><use href="#i-caret"/></svg></summary>
@@ -270,7 +270,7 @@
     <button type="button" id="qGo" class="btn primary" hidden><svg class="ic"><use href="#i-atom"/></svg><span data-i18n="qGo">Leer</span></button>
   </div>
 </dialog>
-<div id="toast" class="toast" hidden></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <script type="module" src="app.js"></script>
 </body>
 </html>

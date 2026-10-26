@@ -58,6 +58,7 @@ The transport bar shows the total length of your slices.
 | <kbd>Space</kbd> | Play / stop |
 | <kbd>Delete</kbd> / <kbd>Backspace</kbd> | Remove the selected slice |
 | <kbd>←</kbd> <kbd>→</kbd> | Previous / next slice |
+| <kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + <kbd>Z</kbd> | Undo the last dig, crop, removal, recording or file load (also offered in the notice) |
 | <kbd>Esc</kbd> | Deselect |
 | Wheel | Zoom · <kbd>Shift</kbd> + wheel: scroll |
 | Double-click | Add a slice of the chosen length |

@@ -119,6 +119,7 @@ main { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 1
 .tab-dl { --fc: var(--accent); color: var(--accent); }
 .tabmeta { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tabrow .link, .tabrow .iconbtn { margin-left: auto; white-space: nowrap; }
+.tabrow .link { padding: 8px 0; } /* 24px+ touch target */
 .panel { --fc: var(--edge); padding: 14px 16px; }
 .tabrow:has(.tab-dl) + .panel { --fc: var(--accent); }
 
@@ -277,7 +278,7 @@ input[type=checkbox] { width: 16px; height: 16px; margin: 0; }
 .slot.free { --fill: #040b07; cursor: default; }
 .slot.hit::after { content: ""; position: absolute; inset: 0; background: var(--edge); animation: hit 0.18s ease-out forwards; pointer-events: none; }
 @keyframes hit { from { opacity: 0.55; } to { opacity: 0; } }
-.seg.mini { --cut: 5px; height: 26px; padding: 3px; }
+.seg.mini { --cut: 5px; height: 30px; padding: 3px; }
 .seg.mini span { padding: 0 7px; font-size: 10px; }
 .seg.mini input:checked + span { clip-path: polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px); }
 .slot.free::after {
@@ -355,8 +356,12 @@ input[type=checkbox] { width: 16px; height: 16px; margin: 0; }
 .rechint { flex-basis: 100%; margin: 0; font-size: 12px; color: var(--muted); }
 .rechint:empty { display: none; }
 
+.toastbtn {
+  margin-left: 12px; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; color: var(--bg); text-decoration: underline; text-underline-offset: 3px;
+}
 .toast {
-  --fc: var(--edge); --fill: var(--edge); --cut: 8px;
+  --fc: var(--edge); --fill: var(--edge); --cut: 8px; display: flex; align-items: center;
   position: fixed; top: 66px; left: 50%; transform: translateX(-50%); z-index: 60;
   color: var(--bg); font: 11px/1.4 var(--pixel); text-transform: uppercase; padding: 10px 16px;
   max-width: calc(100vw - 32px);
